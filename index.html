@@ -766,7 +766,6 @@
   let audioContext = null;
 
   function initWebSocket() {
-<<<<<<< HEAD
     const apiOrigin = window.SAHARA_API_ORIGIN || (
       window.location.port === '8000'
         ? window.location.origin
@@ -775,11 +774,6 @@
     const apiUrl = new URL(apiOrigin);
     const protocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:';
     websocket = new WebSocket(`${protocol}//${apiUrl.host}/ws/stream`);
-=======
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.hostname ? `${window.location.hostname}:8000` : 'localhost:8000';
-    websocket = new WebSocket(`${protocol}//${host}/ws/stream`);
->>>>>>> e55edc0c99248f6eb01fc4c7635cfa4191db062b
     websocket.onopen = () => console.log('WebSocket connected');
     websocket.onmessage = (event) => {
       try {
