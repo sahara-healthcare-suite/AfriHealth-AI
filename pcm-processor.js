@@ -1,17 +1,18 @@
 class PCMProcessor extends AudioWorkletProcessor {
-  process(inputs, outputs, parameters) {
+  process(inputs) {
     const input = inputs[0];
-    if (input && input.length > 0) {
-      const float32Data = input[0];
-      const pcm16Data = new Int16Array(float32Data.length);
-      for (let i = 0; i < float32Data.length; i++) {
-        const s = Math.max(-1, Math.min(1, float32Data[i]));
-        pcm16Data[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+    if (input && input[0]) {
+      const inputData = input[0];
+      const ratio = sampleRate / 16000;
+      const newLength = Math.floor(inputData.length / ratio);
+      const pcm16 = new Int16Array(newLength);
+      for (let i = 0; i < newLength; i++) {
+        const s = Math.max(-1, Math.min(1, inputData[Math.floor(i * ratio)]));
+        pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
       }
-      this.port.postMessage(pcm16Data.buffer);
+      this.port.postMessage(pcm16.buffer, [pcm16.buffer]);
     }
     return true;
   }
 }
 registerProcessor('pcm-processor', PCMProcessor);
-

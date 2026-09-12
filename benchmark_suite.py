@@ -2,8 +2,7 @@ import os
 import json
 import math
 import asyncio
-import numpy as np
-import requests
+from statistics import fmean
 
 try:
     import jiwer
@@ -29,7 +28,19 @@ def calculate_wer(reference: str, hypothesis: str) -> float:
         return 0.0 if not hyp_clean else 1.0
     if jiwer:
         return float(jiwer.wer(ref_clean, hyp_clean))
-    return 0.12
+
+    ref_words = ref_clean.split()
+    hyp_words = hyp_clean.split()
+    distances = list(range(len(hyp_words) + 1))
+    for ref_word in ref_words:
+        next_distances = [distances[0] + 1]
+        for index, hyp_word in enumerate(hyp_words, start=1):
+            substitution = distances[index - 1] + (ref_word != hyp_word)
+            insertion = next_distances[index - 1] + 1
+            deletion = distances[index] + 1
+            next_distances.append(min(substitution, insertion, deletion))
+        distances = next_distances
+    return distances[-1] / len(ref_words)
 
 def calculate_entity_accuracy(reference: str, hypothesis: str) -> float:
     ref_words = set(reference.lower().split())
@@ -107,8 +118,8 @@ async def run_benchmark():
     print("============================================================")
 
     for m in models:
-        mean_wer = float(np.mean(results[m]["wers"]))
-        mean_ea = float(np.mean(results[m]["entity_accuracies"]))
+        mean_wer = fmean(results[m]["wers"])
+        mean_ea = fmean(results[m]["entity_accuracies"])
         faas = calculate_faas(overall_score=mean_ea, wer=mean_wer)
         
         summary[m] = {

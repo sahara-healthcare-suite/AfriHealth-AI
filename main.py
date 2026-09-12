@@ -147,6 +147,7 @@ async def websocket_endpoint(websocket: WebSocket):
     auth_header = " ".join(("Bearer", INTRON_API_KEY)) if INTRON_API_KEY else ""
     headers = {"Authorization": auth_header} if auth_header else {}
 
+<<<<<<< HEAD
     try:
         async with websockets.connect(INTRON_WS_URL, additional_headers=headers) as intron_ws:
             full_transcript = ""
@@ -159,6 +160,27 @@ async def websocket_endpoint(websocket: WebSocket):
                     if payload.get("event") == "stop":
                         await intron_ws.send(json.dumps({"action": "flush"}))
                         break
+=======
+    async def forward_audio_to_intron():
+        headers = {"Authorization": "Bearer " + INTRON_API_KEY} if INTRON_API_KEY else {}
+        try:
+            async with websockets.connect(INTRON_WS_URL, additional_headers=headers) as intron_ws:
+                async def receive_from_client():
+                    try:
+                        while True:
+                            message = await websocket.receive()
+                            if "bytes" in message and message["bytes"]:
+                                await intron_ws.send(message["bytes"])
+                            elif "text" in message and message["text"]:
+                                payload = json.loads(message["text"])
+                                if payload.get("event") == "stop":
+                                    await intron_ws.send(json.dumps({"action": "flush"}))
+                                    break
+                    except WebSocketDisconnect:
+                        logger.info("Client disconnected.")
+                    except Exception as e:
+                        logger.error(f"Error reading client audio: {e}")
+>>>>>>> e55edc0c99248f6eb01fc4c7635cfa4191db062b
 
                 try:
                     response = await asyncio.wait_for(intron_ws.recv(), timeout=0.05)
