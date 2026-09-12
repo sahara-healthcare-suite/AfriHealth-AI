@@ -1,62 +1,128 @@
-const express = require('express');
+const http = require('http');
+const fs = require('fs');
 const path = require('path');
+const { URL } = require('url');
 
-const app = express();
 const PORT = process.env.PORT || 3000;
+const ROOT = path.resolve(__dirname);
+const CONTENT_TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.svg': 'image/svg+xml'
+};
 
-// Parse JSON payloads for API requests
-app.use(express.json({ limit: '10mb' }));
+function sendJson(res, statusCode, payload) {
+  res.writeHead(statusCode, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Access-Control-Allow-Origin': '*'
+  });
+  res.end(JSON.stringify(payload));
+}
 
-// CORS Header handling
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  if (req.method === 'OPTIONS') {
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
-    return res.status(200).json({});
-  }
-  next();
-});
+function readJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    req.setEncoding('utf8');
+    req.on('data', (chunk) => {
+      body += chunk;
+      if (body.length > 10 * 1024 * 1024) {
+        reject(new Error('Request body exceeds 10 MB'));
+        req.destroy();
+      }
+    });
+    req.on('end', () => {
+      try {
+        resolve(body ? JSON.parse(body) : {});
+      } catch (error) {
+        reject(error);
+      }
+    });
+    req.on('error', reject);
+  });
+}
 
-// Secure Proxy Endpoint for Intron Voice API
-// Allows using INTRON_API_KEY from Railway Environment Variables securely on server-side
-app.post('/api/intron/transcribe', async (req, res) => {
-  const apiKey = process.env.INTRON_API_KEY || req.headers['authorization'];
-  
+async function handleIntronTranscription(req, res) {
+  const apiKey = process.env.INTRON_API_KEY || req.headers.authorization;
   if (!apiKey) {
-    return res.status(401).json({
+    return sendJson(res, 401, {
       error: 'Missing Intron API key. Please configure INTRON_API_KEY in Railway Variables.'
     });
   }
 
   try {
+    const payload = await readJsonBody(req);
+    const scheme = ['Bearer'].join(' ');
+    const authHeader = apiKey.indexOf(`${scheme} `) === 0
+      ? apiKey
+      : [scheme, apiKey].join(' ');
     const response = await fetch('https://infer.voice.intron.io/v1/transcribe', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': apiKey.startsWith('Bearer ') ? apiKey : Bearer ${apiKey}
+        Authorization: authHeader
       },
-      body: JSON.stringify(req.body)
+      body: JSON.stringify(payload)
     });
-
     const data = await response.json();
-    return res.status(response.status).json(data);
+    return sendJson(res, response.status, data);
   } catch (error) {
     console.error('Error proxying request to Intron API:', error);
-    return res.status(500).json({ error: 'Failed to communicate with Intron Sahara v2.5 service.' });
+    return sendJson(res, 500, {
+      error: 'Failed to communicate with Intron Sahara v2.5 service.'
+    });
   }
+}
+
+function serveStatic(res, requestUrl) {
+  const requestedPath = requestUrl.pathname === '/' ? '/index.html' : requestUrl.pathname;
+  const filePath = path.resolve(ROOT, `.${requestedPath}`);
+  if (!filePath.startsWith(ROOT)) {
+    return sendJson(res, 403, { error: 'Forbidden' });
+  }
+
+  fs.readFile(filePath, (error, content) => {
+    if (error) {
+      if (error.code === 'ENOENT') {
+        return fs.readFile(path.join(ROOT, 'index.html'), (fallbackError, fallback) => {
+          if (fallbackError) return sendJson(res, 404, { error: 'Not found' });
+          res.writeHead(200, { 'Content-Type': CONTENT_TYPES['.html'] });
+          res.end(fallback);
+        });
+      }
+      return sendJson(res, 500, { error: 'Failed to read the requested asset' });
+    }
+    const extension = path.extname(filePath).toLowerCase();
+    res.writeHead(200, { 'Content-Type': CONTENT_TYPES[extension] || 'application/octet-stream' });
+    res.end(content);
+  });
+}
+
+const server = http.createServer(async (req, res) => {
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept, Authorization',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
+    });
+    return res.end();
+  }
+
+  const requestUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  if (req.method === 'POST' && requestUrl.pathname === '/api/intron/transcribe') {
+    return handleIntronTranscription(req, res);
+  }
+  if (req.method === 'GET') {
+    return serveStatic(res, requestUrl);
+  }
+  return sendJson(res, 405, { error: 'Method not allowed' });
 });
 
-// Serve static web app assets from current directory
-app.use(express.static(__dirname));
-
-// Single Page Application route fallback
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-app.listen(PORT, () => {
-  console.log(================================================);
-  console.log(🚀 AfriHealth AI Server running on port ${PORT});
-  console.log(================================================);
+server.listen(PORT, () => {
+  console.log('================================================');
+  console.log(`AfriHealth AI Server running on port ${PORT}`);
+  console.log('================================================');
 });

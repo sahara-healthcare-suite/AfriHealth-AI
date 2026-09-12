@@ -1,10 +1,11 @@
-import os
-import json
 import asyncio
+import json
 import logging
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Response
-from fastapi.middleware.cors import CORSMiddleware
+import os
+
 import websockets
+from fastapi import FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("SaharaHealthcareSuite")
@@ -12,21 +13,30 @@ logger = logging.getLogger("SaharaHealthcareSuite")
 app = FastAPI(
     title="Sahara Healthcare Suite API",
     description="Code-Switched Speech-to-Text & Clinical Artifact Generation Engine",
-    version="2.5.0"
+    version="2.5.0",
 )
 
+allowed_origins = [
+    origin.strip()
+    for origin in os.getenv(
+        "ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8000"
+    ).split(",")
+    if origin.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=allowed_origins,
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 INTRON_WS_URL = os.getenv("INTRON_WS_URL", "wss://infer.voice.intron.io/stt/v1/stream")
 INTRON_API_KEY = os.getenv("INTRON_API_KEY", "")
 
-def generate_clinical_artifacts(transcript: str) -> dict:
+
+def generate_clinical_artifacts(transcript: str, patient_context: dict | None = None) -> dict:
+    patient_context = patient_context or {}
     text_lower = transcript.lower()
     symptoms = []
     if "cough" in text_lower or "dhukkuba" in text_lower:
@@ -50,23 +60,70 @@ def generate_clinical_artifacts(transcript: str) -> dict:
 
     soap_note = {
         "subjective": f"Patient presents with: {', '.join(symptoms)}. Symptoms documented via code-switched oral intake.",
-        "objective": "Vital signs stable. Physical exam reveals no acute respiratory distress.",
+        "objective": "Not provided in the source transcript; clinician examination and vital signs required.",
         "assessment": f"Primary Clinical Assessment: Code-Switched Consultation evaluation. Suspected condition matching ICD-10 ({icd10_codes[0]['code']}).",
-        "plan": "1. Administer prescribed symptomatic treatment.\n2. Hydration and resting protocol.\n3. Follow up in 48-72 hours if symptoms persist."
+        "plan": "1. Clinician review required before treatment or coding.\n2. Record vital signs, examination findings, allergies, age, weight, and relevant history.\n3. Follow up according to clinician assessment.",
     }
 
-    prescriptions = []
+    allergies = str(patient_context.get("allergies", "")).lower()
+    clinician_confirmed = patient_context.get("clinician_confirmed", False) is True
+    allergy_conflict = any(term in allergies for term in ("penicillin", "amoxicillin", "augmentin"))
+    viral_features = any(term in text_lower for term in ("runny nose", "clear nasal", "mild sore throat", "viral"))
+    medication_alerts = []
+    blocked_medications = []
+
+    if viral_features:
+        medication_alerts.append(
+            "Possible viral upper-respiratory presentation: do not suggest empiric antibiotics."
+        )
+    if allergy_conflict:
+        medication_alerts.append(
+            "Penicillin-family allergy recorded: Amoxicillin/Augmentin suggestions are blocked."
+        )
+    if viral_features:
+        blocked_medications.append("Amoxicillin")
+
+    medication_candidates = []
     if "fever" in text_lower or "headache" in text_lower:
-        prescriptions.append({"drug": "Paracetamol", "dosage": "500mg", "frequency": "TID (3 times daily)", "duration": "5 days"})
-    if "cough" in text_lower:
-        prescriptions.append({"drug": "Amoxicillin", "dosage": "500mg", "frequency": "BID (2 times daily)", "duration": "7 days"})
+        medication_candidates.append(
+            {"drug": "Paracetamol", "dosage": "Dose requires age, weight, contraindications, and local protocol.", "frequency": "Clinician to determine", "duration": "Clinician to determine"}
+        )
+    if "cough" in text_lower and not viral_features:
+        medication_candidates.append(
+            {"drug": "Amoxicillin", "dosage": "Requires confirmed indication and patient-specific dosing.", "frequency": "Clinician to determine", "duration": "Clinician to determine"}
+        )
+
+    for candidate in medication_candidates:
+        if not clinician_confirmed:
+            if candidate["drug"] not in blocked_medications:
+                blocked_medications.append(candidate["drug"])
+        elif candidate["drug"] == "Amoxicillin" and (allergy_conflict or viral_features):
+            if candidate["drug"] not in blocked_medications:
+                blocked_medications.append(candidate["drug"])
+
+    prescriptions = [
+        candidate for candidate in medication_candidates
+        if candidate["drug"] not in blocked_medications
+    ]
+    if blocked_medications:
+        medication_alerts.append(
+            "Medication suggestions are blocked until a clinician confirms the indication, dose, allergies, and patient context."
+        )
 
     return {
         "transcript": transcript,
         "soap_note": soap_note,
         "icd10_codes": icd10_codes,
-        "prescriptions": prescriptions
+        "prescriptions": prescriptions,
+        "safety_review": {
+            "clinician_review_required": True,
+            "clinician_confirmed": clinician_confirmed,
+            "medication_suggestions_blocked": bool(blocked_medications),
+            "blocked_medications": blocked_medications,
+            "alerts": medication_alerts,
+        },
     }
+
 
 @app.get("/")
 def health_check():
@@ -74,74 +131,70 @@ def health_check():
         "status": "online",
         "service": "Sahara Healthcare Suite API",
         "intron_connected": bool(INTRON_API_KEY),
-        "version": "2.5.0"
+        "version": "2.5.0",
     }
+
 
 @app.get("/favicon.ico", include_in_schema=False)
 def favicon():
     return Response(status_code=204)
 
+
 @app.websocket("/ws/stream")
-def websocket_endpoint(websocket: WebSocket):
-    websocket.accept()
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
     logger.info("Client WebSocket connection accepted.")
+    auth_header = " ".join(("Bearer", INTRON_API_KEY)) if INTRON_API_KEY else ""
+    headers = {"Authorization": auth_header} if auth_header else {}
 
-    async def forward_audio_to_intron():
-        headers = {"Authorization": f"Bearer {INTRON_API_KEY}"} if INTRON_API_KEY else {}
-        try:
-            async with websockets.connect(INTRON_WS_URL, extra_headers=headers) as intron_ws:
-                async def receive_from_client():
-                    try:
-                        while True:
-                            message = await websocket.receive()
-                            if "bytes" in message and message["bytes"]:
-                                await intron_ws.send(message["bytes"])
-                            elif "text" in message and message["text"]:
-                                payload = json.loads(message["text"])
-                                if payload.get("event") == "stop":
-                                    await intron_ws.send(json.dumps({"action": "flush"}))
-                                    break
-                    except WebSocketDisconnect:
-                        logger.info("Client disconnected.")
-                    except Exception as e:
-                        logger.error(f"Error reading client audio: {e}")
+    try:
+        async with websockets.connect(INTRON_WS_URL, additional_headers=headers) as intron_ws:
+            full_transcript = ""
+            while True:
+                message = await websocket.receive()
+                if message.get("bytes"):
+                    await intron_ws.send(message["bytes"])
+                elif message.get("text"):
+                    payload = json.loads(message["text"])
+                    if payload.get("event") == "stop":
+                        await intron_ws.send(json.dumps({"action": "flush"}))
+                        break
 
-                async def receive_from_intron():
-                    full_transcript = ""
-                    try:
-                        async for msg in intron_ws:
-                            data = json.loads(msg)
-                            partial_text = data.get("text", "")
-                            is_final = data.get("is_final", False)
+                try:
+                    response = await asyncio.wait_for(intron_ws.recv(), timeout=0.05)
+                except asyncio.TimeoutError:
+                    continue
+                data = json.loads(response)
+                partial_text = data.get("text", "")
+                is_final = data.get("is_final", False)
+                if partial_text:
+                    full_transcript = (
+                        f"{full_transcript} {partial_text}".strip()
+                        if is_final
+                        else partial_text
+                    )
+                    await websocket.send_json({
+                        "status": "transcribing",
+                        "partial": partial_text,
+                        "transcript": full_transcript,
+                        "is_final": is_final,
+                        "artifacts": generate_clinical_artifacts(full_transcript) if is_final else {},
+                    })
+    except WebSocketDisconnect:
+        logger.info("Client disconnected.")
+    except Exception as error:
+        logger.error("Speech recognition connection failed: %s", error)
+        await websocket.send_json({
+            "status": "error",
+            "message": f"Speech Recognition Connection Error: {error}",
+            "fallback_mode": False,
+        })
+        await websocket.close()
 
-                            if partial_text:
-                                full_transcript += " " + partial_text if is_final else partial_text
-                                artifacts = generate_clinical_artifacts(full_transcript.strip()) if is_final else {}
-                                await websocket.send_json({
-                                    "status": "transcribing",
-                                    "partial": partial_text,
-                                    "transcript": full_transcript.strip(),
-                                    "is_final": is_final,
-                                    "artifacts": artifacts
-                                })
-                    except Exception as e:
-                        logger.error(f"Error receiving from Intron STT engine: {e}")
-
-                await asyncio.gather(receive_from_client(), receive_from_intron())
-        except Exception as err:
-            logger.error(f"Failed to connect to Intron STT engine: {err}")
-            await websocket.send_json({
-                "status": "error",
-                "message": f"Speech Recognition Connection Error: {str(err)}",
-                "fallback_mode": False
-            })
-            await websocket.close()
-
-    asyncio.create_task(forward_audio_to_intron())
 
 @app.post("/api/v1/clinical/process-text")
 def process_clinical_text(data: dict):
     text = data.get("text", "")
     if not text:
         raise HTTPException(status_code=400, detail="Text payload is required")
-    return generate_clinical_artifacts(text)
+    return generate_clinical_artifacts(text, data.get("patient_context"))
