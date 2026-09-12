@@ -701,7 +701,9 @@
   let audioContext = null;
 
   function initWebSocket() {
-    websocket = new WebSocket('ws://localhost:8000/ws/audio');
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.hostname ? `${window.location.hostname}:8000` : 'localhost:8000';
+    websocket = new WebSocket(`${protocol}//${host}/ws/stream`);
     websocket.onopen = () => console.log('WebSocket connected');
     websocket.onerror = (err) => console.error('WebSocket error:', err);
     websocket.onclose = () => console.log('WebSocket closed');

@@ -82,14 +82,14 @@ def favicon():
     return Response(status_code=204)
 
 @app.websocket("/ws/stream")
-def websocket_endpoint(websocket: WebSocket):
-    websocket.accept()
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
     logger.info("Client WebSocket connection accepted.")
 
     async def forward_audio_to_intron():
-        headers = {"Authorization": f"Bearer {INTRON_API_KEY}"} if INTRON_API_KEY else {}
+        headers = {"Authorization": "Bearer " + INTRON_API_KEY} if INTRON_API_KEY else {}
         try:
-            async with websockets.connect(INTRON_WS_URL, extra_headers=headers) as intron_ws:
+            async with websockets.connect(INTRON_WS_URL, additional_headers=headers) as intron_ws:
                 async def receive_from_client():
                     try:
                         while True:

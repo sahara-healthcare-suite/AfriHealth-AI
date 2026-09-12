@@ -21,8 +21,8 @@ app.use((req, res, next) => {
 // Secure Proxy Endpoint for Intron Voice API
 // Allows using INTRON_API_KEY from Cloudflare Environment Variables / Secrets securely on server-side
 app.post('/api/intron/transcribe', async (req, res) => {
-  const apiKey = process.env.INTRON_API_KEY || req.headers['authorization'];
-  
+  const apiKey = process.env.INTRON_API_KEY || req.headers.authorization;
+
   if (!apiKey) {
     return res.status(401).json({
       error: 'Missing Intron API key. Please configure INTRON_API_KEY in your Cloudflare Environment Variables or Secrets.'
@@ -30,11 +30,12 @@ app.post('/api/intron/transcribe', async (req, res) => {
   }
 
   try {
+    const authorization = apiKey.includes(' ') ? apiKey : ['Bearer', apiKey].join(' ');
     const response = await fetch('https://infer.voice.intron.io/v1/transcribe', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': apiKey.startsWith('Bearer ') ? apiKey : `Bearer ${apiKey}`
+        Authorization: authorization,
       },
       body: JSON.stringify(req.body)
     });
