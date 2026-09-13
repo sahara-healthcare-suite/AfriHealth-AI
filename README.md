@@ -79,6 +79,11 @@ This uses one Amharic-English recording per case, keeps the reference
 transcript and target terms in the results, and sends `am` as the Intron
 language code. It intentionally excludes extra duplicate files.
 
+The privacy-safe aggregate results for the reviewed 15-case recording set are
+in [clinical_validation_report.json](clinical_validation_report.json). Raw
+audio, provider response IDs, and full transcripts remain outside the
+repository.
+
 ### Intron proxy
 
 The optional Node proxy keeps `INTRON_API_KEY` on the server:

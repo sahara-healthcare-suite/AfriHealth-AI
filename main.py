@@ -146,10 +146,16 @@ def health_check():
     }
 
 
-def intron_authorization() -> str:
+def masked_intron_authorization() -> str:
     if not INTRON_API_KEY:
         raise HTTPException(status_code=503, detail="Intron API key is not configured")
     return f"Bearer {INTRON_API_KEY}"
+
+
+def intron_request_authorization() -> str:
+    if not INTRON_API_KEY:
+        raise HTTPException(status_code=503, detail="Intron API key is not configured")
+    return INTRON_API_KEY
 
 
 @app.post("/api/intron/tts/generate")
@@ -166,7 +172,7 @@ def generate_intron_tts(data: dict):
     try:
         response = requests.post(
             INTRON_TTS_GENERATE_URL,
-            headers={"Authorization": intron_authorization(), "Content-Type": "application/json"},
+            headers={"Authorization": intron_request_authorization(), "Content-Type": "application/json"},
             json=payload,
             timeout=125,
         )
@@ -191,7 +197,7 @@ def get_intron_tts_status(text_id: str):
     try:
         response = requests.get(
             f"{INTRON_TTS_STATUS_URL.rstrip('/')}/{text_id}",
-            headers={"Authorization": intron_authorization()},
+            headers={"Authorization": intron_request_authorization()},
             timeout=30,
         )
     except requests.RequestException as error:
@@ -229,7 +235,7 @@ def upload_intron_stt_sync(
     try:
         response = requests.post(
             INTRON_STT_UPLOAD_SYNC_URL,
-            headers={"Authorization": intron_authorization()},
+            headers={"Authorization": intron_request_authorization()},
             files={"audio_file_blob": (audio_file_name, audio_bytes, audio_file_blob.content_type)},
             data=fields,
             timeout=125,
@@ -310,6 +316,7 @@ async def tts_websocket_endpoint(websocket: WebSocket):
     headers = {"Authorization": f"Bearer {INTRON_API_KEY}"} if INTRON_API_KEY else {}
 
     try:
+        headers = {"Authorization": intron_request_authorization()}
         async with websockets.connect(tts_url, additional_headers=headers) as intron_ws:
             initial_response = await intron_ws.recv()
             if isinstance(initial_response, bytes):

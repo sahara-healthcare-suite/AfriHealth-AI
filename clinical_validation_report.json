@@ -1,0 +1,31 @@
+{
+  "report_type": "clinical_asr_validation_aggregate",
+  "report_version": "1.0",
+  "evaluation_date": "2026-09-13",
+  "language_pair": "Amharic-English",
+  "cases_evaluated": 15,
+  "recording_provenance": {
+    "selection": "One reviewed recording per CS-01 through CS-15",
+    "review_process": "Reviewed recordings were supplied by a second clinical recording team",
+    "raw_audio_storage": "Local approved validation folder; not included in this repository"
+  },
+  "intron_upload": {
+    "successful_uploads": 15,
+    "failed_uploads": 0,
+    "endpoint": "Intron synchronous STT upload",
+    "language_code": "am"
+  },
+  "metrics": {
+    "mean_word_error_rate": 0.564,
+    "mean_target_term_recall": 0.443
+  },
+  "interpretation": {
+    "status": "baseline_for_clinician_review",
+    "autonomous_clinical_use": false,
+    "note": "Exact target-term scoring treats spelling, inflection, and terminology substitutions as misses. Clinicians must review medication, dose, allergy, pregnancy, pediatric, and emergency terms before any care action."
+  },
+  "privacy": {
+    "raw_transcripts_and_provider_file_ids": "Excluded from repository",
+    "consent_and_provenance_records": "Retained with the approved local validation package"
+  }
+}
