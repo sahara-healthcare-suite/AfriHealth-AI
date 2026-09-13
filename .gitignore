@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+
+# Local gated benchmark downloads and generated evaluation outputs
+clinical_validation/afriswitch/audio/
+clinical_validation/afriswitch/manifests/
+clinical_validation/afriswitch/asr_results.json
+clinical_validation/afriswitch/afriswitch_pilot_report.json

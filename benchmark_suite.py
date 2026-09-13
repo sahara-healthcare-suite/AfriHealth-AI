@@ -2,6 +2,9 @@ import os
 import json
 import math
 import asyncio
+import argparse
+import csv
+from pathlib import Path
 from statistics import fmean
 
 try:
@@ -12,6 +15,7 @@ except ImportError:
 DATASET_INDEX_PATH = os.getenv("DATASET_INDEX", "./evaluation_dataset.json")
 OUTPUT_REPORT_PATH = os.getenv("OUTPUT_REPORT", "./benchmark_report.json")
 OUTPUT_MARKDOWN_PATH = os.getenv("OUTPUT_MARKDOWN", "./BENCHMARK_RESULTS.md")
+AFRISWITCH_ROOT = Path(os.getenv("AFRISWITCH_ROOT", "./clinical_validation/afriswitch"))
 
 INTRON_API_KEY = os.getenv("INTRON_API_KEY", "")
 
@@ -94,6 +98,51 @@ BENCHMARK_SAMPLES = [
     }
 ]
 
+def run_afriswitch_pilot(root: Path) -> None:
+    """Validate the imported pilot and report reference coverage only."""
+    manifest_dir = root / "manifests"
+    metadata_path = root / "import_metadata.json"
+    if not manifest_dir.is_dir() or not metadata_path.is_file():
+        raise FileNotFoundError(
+            f"AfriSwitch import not found at {root}. Run afriswitch_import.py first."
+        )
+
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    configs = {}
+    total_duration = 0.0
+    for manifest_path in sorted(manifest_dir.glob("*.csv")):
+        rows = list(csv.DictReader(manifest_path.open(encoding="utf-8", newline="")))
+        missing_audio = sum(
+            not (root / row["local_audio"]).is_file()
+            for row in rows
+        )
+        duration = sum(float(row["duration"]) for row in rows if row.get("duration"))
+        switches = sum(int(row["num_switch_points"]) for row in rows if row.get("num_switch_points"))
+        configs[manifest_path.stem] = {
+            "utterances": len(rows),
+            "audio_files": len(rows) - missing_audio,
+            "missing_audio": missing_audio,
+            "duration_seconds": round(duration, 2),
+            "switch_points": switches,
+        }
+        total_duration += duration
+
+    report = {
+        "dataset_id": metadata["dataset_id"],
+        "dataset_revision": metadata["dataset_revision"],
+        "split": metadata["split"],
+        "license": metadata["license"],
+        "configs": configs,
+        "total_utterances": sum(item["utterances"] for item in configs.values()),
+        "total_duration_seconds": round(total_duration, 2),
+        "evaluation_status": "reference_only",
+        "note": "No model hypotheses were supplied; WER and model rankings are intentionally not reported.",
+    }
+    output_path = root / "afriswitch_pilot_report.json"
+    output_path.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(json.dumps(report, indent=2, ensure_ascii=False))
+    print(f"Pilot report exported to {output_path}")
+
 async def run_benchmark():
     print("============================================================")
     print("Starting Multi-Model Speech Recognition Benchmark...")
@@ -166,4 +215,19 @@ async def run_benchmark():
     print(f"Report exported to {OUTPUT_REPORT_PATH} and {OUTPUT_MARKDOWN_PATH}.")
 
 if __name__ == "__main__":
-    asyncio.run(run_benchmark())
+    parser = argparse.ArgumentParser(description="Run the fixture benchmark or validate the AfriSwitch pilot.")
+    parser.add_argument(
+        "--afriswitch-pilot",
+        action="store_true",
+        help="Generate a reference-only report from the imported AfriSwitch pilot.",
+    )
+    parser.add_argument(
+        "--afriswitch-root",
+        default=str(AFRISWITCH_ROOT),
+        help="Path to the imported AfriSwitch directory.",
+    )
+    args = parser.parse_args()
+    if args.afriswitch_pilot:
+        run_afriswitch_pilot(Path(args.afriswitch_root))
+    else:
+        asyncio.run(run_benchmark())

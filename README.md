@@ -74,6 +74,61 @@ demonstration benchmark, not a claim of production-wide model performance.
 See [SUBMISSION_READINESS.md](./SUBMISSION_READINESS.md) for the evidence and
 remaining submission tasks.
 
+To validate the imported AfriSwitch pilot and produce a reference-only
+coverage report, run:
+
+```powershell
+python benchmark_suite.py --afriswitch-pilot
+```
+
+This reports utterance counts, durations, switch points, and missing audio.
+It does not report WER or model rankings until actual model hypotheses are
+generated for the imported audio.
+
+To run real ASR inference with three multilingual Whisper checkpoints, install
+the ASR dependencies and start with the bounded smoke test:
+
+```powershell
+python -m pip install -r requirements.txt
+python afriswitch_asr_benchmark.py --limit-per-config 2
+```
+
+The script defaults to `whisper-tiny`, `whisper-base`, and `whisper-small`,
+records the exact checkpoints, and writes predictions and WER metrics to
+`clinical_validation/afriswitch/asr_results.json`. Increase
+`--limit-per-config` only after the smoke test completes; model downloads and
+CPU inference can be substantial.
+
+## AfriSwitch pilot import
+
+AfriSwitch is a gated Hugging Face dataset. Its full release is
+approximately 23.5 GB, contains 54.41 hours and 16,602 utterances, and is
+licensed CC BY-NC-SA 4.0. The import is optional and should be kept separate
+from the clinical-team validation set.
+
+The recommended first step is the bounded Amharic and Oromo pilot. After
+requesting dataset access on Hugging Face, set the token only in your local
+shell and run:
+
+```powershell
+$env:HF_TOKEN = "hf_your_token"
+python -m pip install -r requirements.txt
+python afriswitch_import.py --output .\clinical_validation\afriswitch
+```
+
+The default pilot imports only the `amharic` and `oromo` configurations. To
+request a specific pilot, use `--configs amharic` or
+`--configs amharic oromo`. The importer writes audio, per-language CSV
+manifests, and `import_metadata.json`. Never commit the token, raw audio, or
+private consent records. Do not describe AfriSwitch results as clinical
+validation; it is a general code-switched speech benchmark.
+
+The full import is deliberately opt-in:
+
+```powershell
+python afriswitch_import.py --all-configs --output .\clinical_validation\afriswitch
+```
+
 ## Safety and data handling
 
 See [RESPONSIBLE_AI.md](./RESPONSIBLE_AI.md) for the human-review, consent,

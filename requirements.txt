@@ -1,11 +1,9 @@
-<<<<<<< HEAD
-fastapi
-websockets
-numpy
-requests
-jiwer
-=======
 fastapi>=0.115,<1
 uvicorn[standard]>=0.30,<1
 websockets>=14,<16
->>>>>>> e55edc0c99248f6eb01fc4c7635cfa4191db062b
+numpy>=2,<3
+requests>=2.31,<3
+jiwer>=3.0,<4
+datasets[audio]>=3.0,<5
+soundfile>=0.12,<1
+transformers>=4.45,<5
