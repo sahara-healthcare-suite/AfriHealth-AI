@@ -727,7 +727,8 @@
     if (websocket && websocket.readyState === WebSocket.OPEN) {
       return Promise.resolve(websocket);
     }
-    const apiOrigin = window.SAHARA_API_ORIGIN || (
+    const configuredOrigin = new URLSearchParams(window.location.search).get('api-origin');
+    const apiOrigin = window.SAHARA_API_ORIGIN || configuredOrigin || (
       window.location.port === '8000'
         ? window.location.origin
         : `${window.location.protocol === 'https:' ? 'https:' : 'http:'}//${window.location.hostname}:8000`
@@ -1225,7 +1226,8 @@
         if (status) status.innerText = "Record and save audio before uploading.";
         return;
       }
-      const apiOrigin = window.SAHARA_API_ORIGIN || `${window.location.protocol}//${window.location.hostname}:8000`;
+      const configuredOrigin = new URLSearchParams(window.location.search).get('api-origin');
+      const apiOrigin = window.SAHARA_API_ORIGIN || configuredOrigin || `${window.location.protocol}//${window.location.hostname}:8000`;
       const form = new FormData();
       form.append("audio_file_blob", savedRecordingBlob, "sahara-recording.wav");
       form.append("audio_file_name", "sahara-recording.wav");

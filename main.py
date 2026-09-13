@@ -162,10 +162,18 @@ def intron_request_authorization() -> str:
     )
 
 
-def provider_authorization() -> str:
+def provider_authorization_fixed() -> str:
     if not INTRON_API_KEY:
         raise HTTPException(status_code=503, detail="Intron API key is not configured")
     return INTRON_API_KEY if INTRON_API_KEY.lower().startswith("bearer ") else f"Bearer {INTRON_API_KEY}"
+
+
+def provider_authorization() -> str:
+    if not INTRON_API_KEY:
+        raise HTTPException(status_code=503, detail="Intron API key is not configured")
+    if INTRON_API_KEY.lower().startswith("bearer "):
+        return INTRON_API_KEY
+    return "Bearer " + INTRON_API_KEY
 
 
 @app.post("/api/intron/tts/generate")
