@@ -76,15 +76,17 @@ The repository contains separate evidence types:
 | --- | --- | --- |
 | `benchmark_suite.py` fixture | Reproducible UI/scoring demonstration | Not a population performance claim |
 | AfriSwitch pilot scripts | General code-switched ASR import/inference | Not clinical validation |
-| `clinical_validation_report.json` | Aggregate result from 15 reviewed clinical recordings | Baseline for clinician review |
+| `clinical_validation_report.json` | Aggregate result from 15 reviewed simulated clinical recordings | Benchmark and error-analysis baseline; not real-patient evidence |
 | Clinical audit UI and protocols | Human review, safety scenarios, SOAP scoring | Required before clinical deployment |
 
 Do not combine fixture metrics, AfriSwitch results, and the clinical
 validation baseline into one model ranking.
 
-`clinical_validation_evaluator.py` scores private provider results using the
-same reference cases and emits only aggregate metrics plus critical-term miss
-counts. It does not train a model or commit recordings and transcripts.
+`clinical_validation_evaluator.py` scores provider results using the same
+simulated reference cases and emits only aggregate metrics plus critical-term
+miss counts. The recordings may be reused for benchmarking, error analysis,
+and terminology improvement, but the evaluator does not train a model or
+support autonomous clinical decisions.
 
 ## 5. Security and privacy boundaries
 

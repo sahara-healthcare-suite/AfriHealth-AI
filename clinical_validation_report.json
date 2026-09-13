@@ -7,6 +7,8 @@
   "recording_provenance": {
     "selection": "One reviewed recording per CS-01 through CS-15",
     "review_process": "Reviewed recordings were supplied by a second clinical recording team",
+    "case_type": "Simulated clinical scenarios; no real patient cases or patient-identifying information",
+    "authorized_use": "Approved for benchmarking, error analysis, and terminology improvement; not evidence from real patients",
     "raw_audio_storage": "Local approved validation folder; not included in this repository"
   },
   "intron_upload": {
@@ -26,7 +28,7 @@
     "note": "Exact target-term scoring treats spelling, inflection, and terminology substitutions as misses. Clinicians must review medication, dose, allergy, pregnancy, pediatric, and emergency terms before any care action."
   },
   "privacy": {
-    "raw_transcripts_and_provider_file_ids": "Excluded from repository",
-    "consent_and_provenance_records": "Retained with the approved local validation package"
+    "raw_transcripts_and_provider_file_ids": "Excluded from repository unless separately needed for private evaluation",
+    "consent_and_provenance_records": "No patient consent is required for the simulated cases; recording-team provenance is retained locally"
   }
 }

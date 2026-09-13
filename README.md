@@ -79,10 +79,11 @@ This uses one Amharic-English recording per case, keeps the reference
 transcript and target terms in the results, and sends `am` as the Intron
 language code. It intentionally excludes extra duplicate files.
 
-The privacy-safe aggregate results for the reviewed 15-case recording set are
-in [clinical_validation_report.json](clinical_validation_report.json). Raw
-audio, provider response IDs, and full transcripts remain outside the
-repository.
+The aggregate results for the reviewed 15-case recording set are in
+[clinical_validation_report.json](clinical_validation_report.json). These are
+simulated clinical scenarios, not real patient cases, and may be used for
+benchmarking, error analysis, and terminology improvement. Raw audio, provider
+response IDs, and full transcripts remain outside the repository by default.
 
 To regenerate a privacy-safe model report from the private Intron upload
 results, run:
@@ -93,8 +94,9 @@ python clinical_validation_evaluator.py
 
 The evaluator reports WER, target-term recall, and critical-term miss counts
 without writing transcripts, audio names, provider IDs, or per-case error
-details to the aggregate output. Use the same private result file for each
-approved model comparison and keep the resulting detailed inputs outside Git.
+details to the aggregate output. Use the same simulated cases for approved
+model comparisons and terminology/error analysis. This does not constitute
+clinical validation on real patients or authorize autonomous care.
 
 ### Intron proxy
 

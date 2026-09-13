@@ -79,7 +79,7 @@ def evaluate(results_path: Path, model_name: str) -> dict:
         "report_type": "clinical_asr_validation_aggregate",
         "report_version": "1.1",
         "evaluation_method": "token-level WER and exact normalized target-term matching",
-        "source": "private clinician-reviewed recording results",
+        "source": "reviewed simulated clinical recording results",
         "cases_evaluated": len(cases),
         "models": {
             model_name: {
