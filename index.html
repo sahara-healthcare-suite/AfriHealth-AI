@@ -855,6 +855,7 @@
       const status = document.getElementById('mic-status');
       if (status) status.innerText = `Microphone streaming unavailable: ${err.message}`;
       stopAudioStreaming();
+      throw err;
     }
   }
 
@@ -1197,17 +1198,19 @@
           if (progress) progress.style.width = "50%";
           drawWaveform(true);
         } catch (err) {
-          alert("Microphone permission unavailable. Running sample pre-loader mode.");
-          runSampleAudioPreloader();
+          isRecordingTriage = false;
+          if (status) status.innerText = `Recording unavailable: ${err.message}. Check microphone permission and the speech service.`;
+          if (btn) btn.className = "w-14 h-14 rounded-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 flex items-center justify-center text-xl font-bold shadow-lg transition hover:scale-105";
+          stopAudioStreaming();
         }
       } else {
         isRecordingTriage = false;
+        if (websocket && websocket.readyState === WebSocket.OPEN) {
+          websocket.send(JSON.stringify({ event: "stop" }));
+        }
         if (mediaRecorder && mediaRecorder.state === "recording") {
           mediaRecorder.state = "inactive";
           if (finishReviewRecording) finishReviewRecording();
-        }
-        if (websocket && websocket.readyState === WebSocket.OPEN) {
-          websocket.send(JSON.stringify({ event: "stop" }));
         }
         stopAudioStreaming();
         if (btn) btn.className = "w-14 h-14 rounded-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 flex items-center justify-center text-xl font-bold shadow-lg transition hover:scale-105";

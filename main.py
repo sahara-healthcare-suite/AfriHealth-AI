@@ -162,6 +162,12 @@ def intron_request_authorization() -> str:
     )
 
 
+def provider_authorization() -> str:
+    if not INTRON_API_KEY:
+        raise HTTPException(status_code=503, detail="Intron API key is not configured")
+    return INTRON_API_KEY if INTRON_API_KEY.lower().startswith("bearer ") else f"Bearer {INTRON_API_KEY}"
+
+
 @app.post("/api/intron/tts/generate")
 def generate_intron_tts(data: dict):
     text = data.get("text")
@@ -176,7 +182,7 @@ def generate_intron_tts(data: dict):
     try:
         response = requests.post(
             INTRON_TTS_GENERATE_URL,
-            headers={"Authorization": intron_request_authorization(), "Content-Type": "application/json"},
+            headers={"Authorization": provider_authorization(), "Content-Type": "application/json"},
             json=payload,
             timeout=125,
         )
@@ -201,7 +207,7 @@ def get_intron_tts_status(text_id: str):
     try:
         response = requests.get(
             f"{INTRON_TTS_STATUS_URL.rstrip('/')}/{text_id}",
-            headers={"Authorization": intron_request_authorization()},
+            headers={"Authorization": provider_authorization()},
             timeout=30,
         )
     except requests.RequestException as error:
@@ -239,7 +245,7 @@ def upload_intron_stt_sync(
     try:
         response = requests.post(
             INTRON_STT_UPLOAD_SYNC_URL,
-            headers={"Authorization": intron_request_authorization()},
+            headers={"Authorization": provider_authorization()},
             files={"audio_file_blob": (audio_file_name, audio_bytes, audio_file_blob.content_type)},
             data=fields,
             timeout=125,
@@ -263,7 +269,7 @@ def favicon():
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     logger.info("Client WebSocket connection accepted.")
-    auth_header = " ".join(("Bearer", INTRON_API_KEY)) if INTRON_API_KEY else ""
+    auth_header = provider_authorization() if INTRON_API_KEY else ""
     headers = {"Authorization": auth_header} if auth_header else {}
 
     try:
@@ -339,7 +345,7 @@ async def tts_websocket_endpoint(websocket: WebSocket):
     headers = {"Authorization": f"Bearer {INTRON_API_KEY}"} if INTRON_API_KEY else {}
 
     try:
-        headers = {"Authorization": intron_request_authorization()}
+        headers = {"Authorization": provider_authorization()}
         async with websockets.connect(tts_url, additional_headers=headers) as intron_ws:
             initial_response = await intron_ws.recv()
             if isinstance(initial_response, bytes):
