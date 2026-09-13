@@ -77,7 +77,7 @@ The repository contains separate evidence types:
 | `benchmark_suite.py` fixture | Reproducible UI/scoring demonstration | Not a population performance claim |
 | AfriSwitch pilot scripts | General code-switched ASR import/inference | Not clinical validation |
 | `clinical_validation_report.json` | Aggregate result from 15 reviewed simulated clinical recordings | Benchmark and error-analysis baseline; not real-patient evidence |
-| Clinical audit UI and protocols | Human review, safety scenarios, SOAP scoring | Required before clinical deployment |
+| Review protocols and safety documentation | Human review, safety scenarios, SOAP scoring | Maintained outside the public demo flow |
 
 Do not combine fixture metrics, AfriSwitch results, and the clinical
 validation baseline into one model ranking.
@@ -87,6 +87,11 @@ simulated reference cases and emits only aggregate metrics plus critical-term
 miss counts. The recordings may be reused for benchmarking, error analysis,
 and terminology improvement, but the evaluator does not train a model or
 support autonomous clinical decisions.
+
+The separate clinical validation audit form is intentionally not exposed in
+the public application navigation. The product demo focuses on the three care
+modules and benchmark matrix; review protocols remain available for controlled
+evaluation and future clinical governance.
 
 ## 5. Security and privacy boundaries
 
