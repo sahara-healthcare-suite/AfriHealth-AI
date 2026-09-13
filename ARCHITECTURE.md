@@ -1,0 +1,107 @@
+# AfriHealth AI Architecture
+
+## 1. System purpose
+
+AfriHealth AI is a browser-based clinical voice documentation and
+decision-support prototype for community health workers and clinicians. It
+supports English, Amharic-English, and Afaan Oromoo-English code-switching.
+The system produces draft transcripts and clinician-review artifacts; it is
+not an autonomous diagnostic or prescribing service.
+
+## 2. Runtime components
+
+```text
+Browser (index.html)
+  |-- microphone PCM capture and local WAV review
+  |-- WebSocket client for live STT
+  |-- REST client for saved-recording STT upload
+  |-- triage, EHR intake, follow-up, benchmark, and audit views
+  |
+  +--> FastAPI service (main.py :8000)
+          |-- server-side Intron API-key boundary
+          |-- streaming STT WebSocket proxy
+          |-- streaming TTS WebSocket proxy
+          |-- synchronous STT upload bridge
+          |-- synchronous TTS generation and status bridges
+          |-- clinical artifact and medication safety gate
+          |
+          +--> Intron Sahara STT/TTS APIs
+
+Optional local static server (server.js or npm start :3000)
+  |-- serves the browser files
+  +-- optional legacy Intron proxy route
+```
+
+The browser must not receive or store the Intron API key. Production
+deployments should expose only the FastAPI service through an allowlisted
+origin and configure `ALLOWED_ORIGINS`.
+
+## 3. Main request flows
+
+### Live transcription
+
+1. The browser requests microphone access and captures audio.
+2. Audio bytes and control messages are sent to `/ws/stream`.
+3. FastAPI adds the server-side Authorization header and connects to Intron.
+4. Partial and final transcript messages are returned to the browser.
+5. Final text populates the transcript, entity, triage, and safety-review
+   panels.
+
+### Saved recording review and upload
+
+1. The browser captures PCM and encodes a local WAV blob.
+2. The user reviews playback and may download the local copy.
+3. Upload occurs only after the explicit upload action.
+4. FastAPI forwards the multipart file to Intron's synchronous STT endpoint.
+5. The browser displays the returned transcript and clinician-review triage
+   output.
+
+Synchronous uploads are limited by the provider's documented 120-second
+maximum. The controlled clinical uploader uses one reviewed recording per
+case and keeps raw audio and provider response data outside Git.
+
+### Clinical artifact generation
+
+`/api/v1/clinical/process-text` creates draft SOAP, ICD-10, symptom, and
+medication artifacts. Medication candidates remain blocked unless the request
+contains explicit clinician confirmation and patient context. Possible viral
+features and penicillin-family allergy conflicts produce alerts and block
+amoxicillin suggestions.
+
+## 4. Evidence and evaluation layers
+
+The repository contains separate evidence types:
+
+| Evidence | Purpose | Interpretation |
+| --- | --- | --- |
+| `benchmark_suite.py` fixture | Reproducible UI/scoring demonstration | Not a population performance claim |
+| AfriSwitch pilot scripts | General code-switched ASR import/inference | Not clinical validation |
+| `clinical_validation_report.json` | Aggregate result from 15 reviewed clinical recordings | Baseline for clinician review |
+| Clinical audit UI and protocols | Human review, safety scenarios, SOAP scoring | Required before clinical deployment |
+
+Do not combine fixture metrics, AfriSwitch results, and the clinical
+validation baseline into one model ranking.
+
+## 5. Security and privacy boundaries
+
+- Keep `INTRON_API_KEY` in a server environment variable.
+- Never place credentials in `index.html`, commits, screenshots, or demo
+  recordings.
+- Keep raw recordings, consent forms, identity mappings, full transcripts, and
+  provider file IDs outside the public repository.
+- Use de-identified or simulated cases for public demonstrations.
+- Configure exact production CORS origins rather than broad wildcards.
+- Treat generated transcripts, entities, codes, triage labels, and medication
+  candidates as clinician-review drafts.
+
+## 6. Known limitations
+
+- The current frontend uses a lightweight browser capture path and requires a
+  compatible microphone/browser for live recording.
+- Oromo handling depends on provider support; the bundled Whisper checkpoints
+  do not accept forced `om` language decoding.
+- Clinical validation currently reports a baseline, not a safety or efficacy
+  claim.
+- No demo video is included in this repository. The written
+  [DEMO_SCRIPT.md](./DEMO_SCRIPT.md) is provided for a future recording or
+  live judging session.

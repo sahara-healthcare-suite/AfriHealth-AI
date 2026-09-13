@@ -20,7 +20,7 @@ The challenge brief requests:
 | Technical documentation | `README.md`, `main.py`, `server.js`, `benchmark_suite.py` | Covered |
 | Three-model benchmark | `benchmark_suite.py`, `benchmark_report.json`, `BENCHMARK_RESULTS.md` | Covered with limitations |
 | Ethics and inclusion | `RESPONSIBLE_AI.md` | Covered; obtain consent evidence |
-| Demo video link | External submission artifact | **Still required** |
+| Demo video link | Not included by request; `DEMO_SCRIPT.md` is available | **Portal-dependent** |
 | Benchmark audio metadata | `BENCHMARK_METADATA_TEMPLATE.csv` | Fill with real consented data |
 | Recording and audit handoff | `CLINICAL_RECORDING_PROTOCOL.md`, `TEAM_HANDOFF_CHECKLIST.md` | Ready for team use |
 
@@ -67,8 +67,9 @@ Record a 2–3 minute unlisted video showing:
 ## Final pre-submission checklist
 
 - [ ] Regenerate both benchmark output files from the selected protocol.
-- [ ] Record the prepared [DEMO_SCRIPT.md](./DEMO_SCRIPT.md) and add the
-      unlisted/public URL to the submission form.
+- [ ] If the portal requires a video, record the prepared
+      [DEMO_SCRIPT.md](./DEMO_SCRIPT.md) and add the unlisted/public URL to the
+      submission form. No video is included in this repository.
 - [ ] Fill [BENCHMARK_METADATA_TEMPLATE.csv](./BENCHMARK_METADATA_TEMPLATE.csv)
       only with real consent and provenance information.
 - [ ] Follow [CLINICAL_RECORDING_PROTOCOL.md](./CLINICAL_RECORDING_PROTOCOL.md)
