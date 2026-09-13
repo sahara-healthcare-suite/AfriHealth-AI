@@ -14,6 +14,51 @@ until the caller supplies explicit clinician confirmation in patient context.
 Possible viral presentations and penicillin-family allergy conflicts remain
 blocked and are returned as review alerts.
 
+## Project team
+
+**Project owner**
+
+- **Ermias Amare** — Project owner and product lead
+
+**Clinical experts**
+
+- **Rahel Tamiru** — Clinical expert
+- **Hiwot Shewangizaw** — Clinical expert
+
+**AI and machine-learning research**
+
+- **Melaku Bayu** — AI and ML researcher
+
+The team roles describe project responsibilities and do not represent
+independent clinical endorsement, regulatory approval, or authorization for
+autonomous care.
+
+## Product modules
+
+1. **Frontline Voice Triage** — Captures code-switched speech and presents a
+   clinician-review triage summary.
+2. **Voice EHR Intake** — Structures a reviewed transcript into draft clinical
+   documentation and coding artifacts.
+3. **Post-Care Voice Follow-up** — Simulates follow-up conversations and
+   highlights possible escalation signals for human review.
+4. **ASR Benchmark Matrix** — Separates fixture, AfriSwitch, and simulated
+   clinical benchmark evidence instead of combining their metrics.
+
+## Challenge submission coverage
+
+| Challenge area | Evidence in this repository |
+| --- | --- |
+| Working prototype | `index.html`, `main.py`, and the documented local run commands |
+| Code-switched speech workflow | Intron STT/TTS bridges and browser recording flow |
+| Three-model comparison | `benchmark_suite.py`, `BENCHMARK_RESULTS.md`, and AfriSwitch tooling |
+| Responsible AI and inclusion | `RESPONSIBLE_AI.md` and the safety gates in `main.py` |
+| Technical architecture | `ARCHITECTURE.md` and `FINAL_SUBMISSION_GUIDE.md` |
+| Simulated clinical benchmark | `clinical_validation_report.json` and `clinical_validation_evaluator.py` |
+| Demonstration | `DEMO_SCRIPT.md`; no video file is stored in this repository |
+
+The benchmark figures are evidence for a prototype evaluation only. They are
+not population-level clinical performance claims.
+
 ## Run locally
 
 ### Browser demo
@@ -61,8 +106,8 @@ the upload button. Select either Amharic-English or Oromo-English code-switch
 before uploading; the corresponding Intron language code is sent with the
 request.
 
-For the approved 15-case clinical package, validate the canonical recording
-selection without uploading:
+For the reviewed 15-case simulated benchmark package, validate the canonical
+recording selection without uploading:
 
 ```powershell
 python clinical_validation_upload.py
@@ -75,9 +120,9 @@ FastAPI bridge:
 python clinical_validation_upload.py --upload
 ```
 
-This uses one Amharic-English recording per case, keeps the reference
-transcript and target terms in the results, and sends `am` as the Intron
-language code. It intentionally excludes extra duplicate files.
+This uses one Amharic-English recording per simulated case, keeps the
+reference transcript and target terms in the results, and sends `am` as the
+Intron language code. It intentionally excludes extra duplicate files.
 
 The aggregate results for the reviewed 15-case recording set are in
 [clinical_validation_report.json](clinical_validation_report.json). These are
