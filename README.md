@@ -84,6 +84,18 @@ in [clinical_validation_report.json](clinical_validation_report.json). Raw
 audio, provider response IDs, and full transcripts remain outside the
 repository.
 
+To regenerate a privacy-safe model report from the private Intron upload
+results, run:
+
+```powershell
+python clinical_validation_evaluator.py
+```
+
+The evaluator reports WER, target-term recall, and critical-term miss counts
+without writing transcripts, audio names, provider IDs, or per-case error
+details to the aggregate output. Use the same private result file for each
+approved model comparison and keep the resulting detailed inputs outside Git.
+
 ### Intron proxy
 
 The optional Node proxy keeps `INTRON_API_KEY` on the server:

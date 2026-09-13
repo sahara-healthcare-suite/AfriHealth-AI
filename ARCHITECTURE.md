@@ -82,6 +82,10 @@ The repository contains separate evidence types:
 Do not combine fixture metrics, AfriSwitch results, and the clinical
 validation baseline into one model ranking.
 
+`clinical_validation_evaluator.py` scores private provider results using the
+same reference cases and emits only aggregate metrics plus critical-term miss
+counts. It does not train a model or commit recordings and transcripts.
+
 ## 5. Security and privacy boundaries
 
 - Keep `INTRON_API_KEY` in a server environment variable.

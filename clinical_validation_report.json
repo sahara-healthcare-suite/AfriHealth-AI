@@ -17,7 +17,8 @@
   },
   "metrics": {
     "mean_word_error_rate": 0.564,
-    "mean_target_term_recall": 0.443
+    "mean_target_term_recall": 0.443,
+    "cases_with_critical_term_misses": 6
   },
   "interpretation": {
     "status": "baseline_for_clinician_review",
