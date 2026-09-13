@@ -118,10 +118,6 @@
     </div>
   </nav>
 
-  <div class="bg-amber-500/10 border-b border-amber-500/30 px-4 sm:px-8 py-2 text-center text-[11px] text-amber-200">
-    Prototype for clinician-reviewed documentation and research evaluation. Not an autonomous diagnostic or prescribing system.
-  </div>
-
   <!-- Collapsible Intron Voice API Key Drawer -->
   <div id="api-key-drawer" class="hidden bg-slate-900 border-b border-slate-800 p-3 px-4 sm:px-8 text-xs text-slate-300">
     <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -796,6 +792,7 @@
         if (payload.transcript) {
           const transcript = document.getElementById('triage-transcript');
           if (transcript) transcript.innerText = payload.transcript;
+          renderTriageFromTranscript(payload.transcript);
         }
         if (payload.artifacts?.safety_review) {
           renderSafetyReview(payload.artifacts.safety_review);
@@ -821,6 +818,46 @@
     panel.innerHTML = `<strong>Clinician review required</strong>${alerts}`;
     const target = document.getElementById('triage-recommendation');
     if (target) target.appendChild(panel);
+  }
+
+  function renderTriageFromTranscript(transcriptText) {
+    const text = String(transcriptText || '').toLowerCase();
+    const symptoms = [];
+    const add = (label, terms) => {
+      if (terms.some(term => text.includes(term))) symptoms.push(label);
+    };
+    add('Fever', ['fever', 'tazabi', 'ho\'a']);
+    add('Cough', ['cough', 'ሳል', 'dhukkuba']);
+    add('Shortness of breath', ['shortness of breath', 'dyspnea', 'wheezing', 'ትንፋሽ']);
+    add('Chest pain', ['chest pain', 'chest tightness']);
+    add('Vomiting or diarrhea', ['vomiting', 'diarrhea', 'dehydration']);
+    add('Headache', ['headache', 'ራስ ምታት']);
+    add('Abdominal pain', ['abdominal pain', 'appendicitis']);
+    add('Rash or allergy concern', ['rash', 'pruritus', 'allergy']);
+
+    const symptomsEl = document.getElementById('triage-symptoms');
+    const badgeEl = document.getElementById('triage-level-badge');
+    const recEl = document.getElementById('triage-recommendation');
+    if (symptomsEl) {
+      symptomsEl.innerHTML = (symptoms.length ? symptoms : ['Transcript requires clinician review']).map(symptom =>
+        `<span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded text-xs font-semibold">${symptom}</span>`
+      ).join('');
+    }
+
+    const emergency = ['chest pain', 'chest tightness', 'shortness of breath', 'dyspnea']
+      .some(term => text.includes(term));
+    const urgent = emergency || ['severe', 'high-grade', 'meningitis', 'appendicitis'].some(term => text.includes(term));
+    if (badgeEl) {
+      badgeEl.className = urgent
+        ? 'mt-2 text-xs font-extrabold px-3 py-1.5 rounded-lg bg-yellow-500/20 text-yellow-300 border border-yellow-500/40 inline-block'
+        : 'mt-2 text-xs font-extrabold px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 inline-block';
+      badgeEl.innerText = emergency ? 'URGENT - CLINICIAN REVIEW REQUIRED' : urgent ? 'URGENT REVIEW' : 'REVIEW REQUIRED';
+    }
+    if (recEl) {
+      recEl.innerText = emergency
+        ? 'Seek urgent clinical assessment; do not rely on automated triage alone.'
+        : 'Clinician review required before diagnosis, treatment, or referral.';
+    }
   }
 
   async function startAudioStreaming(socket) {
@@ -1227,6 +1264,7 @@
         if (transcript) {
           const target = document.getElementById("triage-transcript");
           if (target) target.innerText = transcript;
+          renderTriageFromTranscript(transcript);
         }
         if (status) status.innerText = "Recording uploaded and transcription returned from Intron.";
       } catch (error) {
