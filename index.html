@@ -1210,7 +1210,7 @@
           websocket.send(JSON.stringify({ event: "stop" }));
         }
         if (mediaRecorder && mediaRecorder.state === "recording") {
-          mediaRecorder.state = "inactive";
+          mediaRecorder.state = "stopped";
           if (finishReviewRecording) finishReviewRecording();
         }
         stopAudioStreaming();
