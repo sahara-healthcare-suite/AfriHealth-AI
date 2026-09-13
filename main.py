@@ -155,7 +155,11 @@ def masked_intron_authorization() -> str:
 def intron_request_authorization() -> str:
     if not INTRON_API_KEY:
         raise HTTPException(status_code=503, detail="Intron API key is not configured")
-    return INTRON_API_KEY
+    return (
+        INTRON_API_KEY
+        if INTRON_API_KEY.lower().startswith("bearer ")
+        else f"Bearer {INTRON_API_KEY}"
+    )
 
 
 @app.post("/api/intron/tts/generate")
@@ -273,6 +277,25 @@ async def websocket_endpoint(websocket: WebSocket):
                     payload = json.loads(message["text"])
                     if payload.get("event") == "stop":
                         await intron_ws.send(json.dumps({"action": "flush"}))
+                        try:
+                            while True:
+                                response = await asyncio.wait_for(intron_ws.recv(), timeout=3)
+                                data = json.loads(response)
+                                partial_text = data.get("text", "")
+                                is_final = data.get("is_final", True)
+                                if partial_text:
+                                    full_transcript = f"{full_transcript} {partial_text}".strip()
+                                await websocket.send_json({
+                                    "status": "transcribed",
+                                    "partial": partial_text,
+                                    "transcript": full_transcript,
+                                    "is_final": is_final,
+                                    "artifacts": generate_clinical_artifacts(full_transcript),
+                                })
+                                if is_final:
+                                    break
+                        except asyncio.TimeoutError:
+                            logger.warning("Timed out waiting for final Intron transcript.")
                         break
 
                 try:

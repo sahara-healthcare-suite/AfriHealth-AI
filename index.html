@@ -777,6 +777,9 @@
   let audioContext = null;
 
   function initWebSocket() {
+    if (websocket && websocket.readyState === WebSocket.OPEN) {
+      return Promise.resolve(websocket);
+    }
     const apiOrigin = window.SAHARA_API_ORIGIN || (
       window.location.port === '8000'
         ? window.location.origin
@@ -784,25 +787,42 @@
     );
     const apiUrl = new URL(apiOrigin);
     const protocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:';
-    websocket = new WebSocket(`${protocol}//${apiUrl.host}/ws/stream`);
-    websocket.onopen = () => console.log('WebSocket connected');
-    websocket.onmessage = (event) => {
-      try {
-        const payload = JSON.parse(event.data);
-        if (payload.transcript) {
-          const transcript = document.getElementById('triage-transcript');
-          if (transcript) transcript.innerText = payload.transcript;
-          renderTriageFromTranscript(payload.transcript);
+    return new Promise((resolve, reject) => {
+      websocket = new WebSocket(`${protocol}//${apiUrl.host}/ws/stream`);
+      websocket.onopen = () => {
+        console.log('WebSocket connected');
+        const status = document.getElementById('mic-status');
+        if (status && isRecordingTriage) status.innerText = 'Connected. Listening to code-switched audio stream...';
+        resolve(websocket);
+      };
+      websocket.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload.transcript) {
+            const transcript = document.getElementById('triage-transcript');
+            if (transcript) transcript.innerText = payload.transcript;
+            renderTriageFromTranscript(payload.transcript);
+          }
+          if (payload.artifacts?.safety_review) {
+            renderSafetyReview(payload.artifacts.safety_review);
+          }
+        } catch (error) {
+          console.error('Invalid speech response:', error);
         }
-        if (payload.artifacts?.safety_review) {
-          renderSafetyReview(payload.artifacts.safety_review);
-        }
-      } catch (error) {
-        console.error('Invalid speech response:', error);
-      }
-    };
-    websocket.onerror = (err) => console.error('WebSocket error:', err);
-    websocket.onclose = () => console.log('WebSocket closed');
+      };
+      websocket.onerror = (err) => {
+        console.error('WebSocket error:', err);
+        const status = document.getElementById('mic-status');
+        if (status) status.innerText = 'Speech service connection failed. Review the API service and try again.';
+        reject(new Error('Unable to connect to the speech service.'));
+      };
+      websocket.onclose = () => {
+        console.log('WebSocket closed');
+        const status = document.getElementById('mic-status');
+        if (status && isRecordingTriage) status.innerText = 'Speech service disconnected before transcription completed.';
+        websocket = null;
+      };
+    });
   }
 
   function renderSafetyReview(review) {
@@ -860,13 +880,13 @@
     }
   }
 
-  async function startAudioStreaming(socket) {
+  async function startAudioStreaming(socket, existingStream = null) {
     try {
-      if (!socket || socket.readyState !== WebSocket.OPEN) {
-        initWebSocket();
-      }
+      const connectedSocket = socket && socket.readyState === WebSocket.OPEN
+        ? socket
+        : await initWebSocket();
 
-      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStream = existingStream || await navigator.mediaDevices.getUserMedia({ audio: true });
       audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
       
       await audioContext.audioWorklet.addModule('pcm-processor.js');
@@ -875,8 +895,8 @@
       workletNode = new AudioWorkletNode(audioContext, 'pcm-processor');
 
       workletNode.port.onmessage = (event) => {
-        if (websocket && websocket.readyState === WebSocket.OPEN) {
-          websocket.send(event.data);
+        if (connectedSocket.readyState === WebSocket.OPEN) {
+          connectedSocket.send(event.data);
         }
       };
 
@@ -885,6 +905,9 @@
       console.log("Audio Worklet initialized successfully.");
     } catch (err) {
       console.error("Error setting up Audio Worklet:", err);
+      const status = document.getElementById('mic-status');
+      if (status) status.innerText = `Microphone streaming unavailable: ${err.message}`;
+      stopAudioStreaming();
     }
   }
 
@@ -1179,6 +1202,7 @@
           reviewAudioSource.connect(reviewAudioProcessor);
           reviewAudioProcessor.connect(reviewAudioContext.destination);
           mediaRecorder = { stream, state: "recording", mimeType: "audio/wav" };
+          await startAudioStreaming(websocket, stream);
 
           finishReviewRecording = () => {
             const sampleCount = reviewAudioBuffers.reduce((total, chunk) => total + chunk.length, 0);
@@ -1235,6 +1259,10 @@
           mediaRecorder.state = "inactive";
           if (finishReviewRecording) finishReviewRecording();
         }
+        if (websocket && websocket.readyState === WebSocket.OPEN) {
+          websocket.send(JSON.stringify({ event: "stop" }));
+        }
+        stopAudioStreaming();
         if (btn) btn.className = "w-14 h-14 rounded-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 flex items-center justify-center text-xl font-bold shadow-lg transition hover:scale-105";
         drawWaveform(false);
       }
