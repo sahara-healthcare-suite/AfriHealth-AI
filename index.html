@@ -280,6 +280,21 @@
                   </span>
                 </button>
               </div>
+              <div class="mt-3 flex flex-wrap items-center justify-center gap-2">
+                <label for="intron-upload-language" class="text-[11px] text-slate-400">Recording language</label>
+                <select id="intron-upload-language" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
+                  <option value="am">Amharic-English code-switch</option>
+                  <option value="om">Oromo-English code-switch</option>
+                </select>
+                <button id="save-upload-recording" onclick="uploadSavedRecording()" disabled class="h-9 px-3 rounded-lg bg-emerald-600/20 border border-emerald-500/40 text-emerald-300 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold">
+                  <i class="fa-solid fa-cloud-arrow-up mr-1"></i> Save and upload recording to Intron
+                </button>
+              </div>
+              <div id="saved-recording-panel" class="hidden mt-3 text-left p-3 rounded-lg border border-slate-700 bg-slate-950">
+                <div class="text-[11px] text-slate-400 mb-2">Review saved recording before upload</div>
+                <audio id="saved-recording-player" class="w-full" controls></audio>
+                <a id="download-saved-recording" class="inline-block mt-2 text-xs text-indigo-300 hover:text-indigo-200" download="sahara-recording.webm">Download local copy</a>
+              </div>
 
               <!-- Real-time audio waveform canvas -->
               <div class="mt-3 bg-slate-950 p-2 rounded-lg border border-slate-800 flex items-center justify-between">
@@ -849,20 +864,43 @@
   let benchmarkChartInstance = null;
   let isRecordingTriage = false;
 
-  async function toggleTriageRecord() {
-    const btn = document.getElementById('recordBtn');
-    if (!isRecordingTriage) {
-      isRecordingTriage = true;
-      if (btn) btn.innerText = "Stop Recording";
-      await startAudioStreaming(websocket);
-    } else {
-      isRecordingTriage = false;
-      if (btn) btn.innerText = "Start Live Record";
-      stopAudioStreaming();
-    }
-  }
   let mediaRecorder = null;
   let audioChunks = [];
+  let savedRecordingBlob = null;
+  let savedRecordingUrl = null;
+  let reviewAudioContext = null;
+  let reviewAudioSource = null;
+  let reviewAudioProcessor = null;
+  let reviewAudioBuffers = [];
+  let finishReviewRecording = null;
+
+  function encodeWav(samples, sampleRate) {
+    const buffer = new ArrayBuffer(44 + samples.length * 2);
+    const view = new DataView(buffer);
+    const writeString = (offset, value) => {
+      for (let index = 0; index < value.length; index += 1) {
+        view.setUint8(offset + index, value.charCodeAt(index));
+      }
+    };
+    writeString(0, "RIFF");
+    view.setUint32(4, 36 + samples.length * 2, true);
+    writeString(8, "WAVE");
+    writeString(12, "fmt ");
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeString(36, "data");
+    view.setUint32(40, samples.length * 2, true);
+    for (let index = 0; index < samples.length; index += 1) {
+      const sample = Math.max(-1, Math.min(1, samples[index]));
+      view.setInt16(44 + index * 2, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+    }
+    return new Blob([view], { type: "audio/wav" });
+  }
 
     const GOLD_STANDARD_DATASET = {
       "AGGREGATE": {
@@ -1094,21 +1132,57 @@
       if (!isRecordingTriage) {
         try {
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          mediaRecorder = new MediaRecorder(stream);
-          audioChunks = [];
+          reviewAudioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+          reviewAudioSource = reviewAudioContext.createMediaStreamSource(stream);
+          reviewAudioProcessor = reviewAudioContext.createScriptProcessor(4096, 1, 1);
+          reviewAudioBuffers = [];
+          reviewAudioProcessor.onaudioprocess = (event) => {
+            reviewAudioBuffers.push(new Float32Array(event.inputBuffer.getChannelData(0)));
+          };
+          reviewAudioSource.connect(reviewAudioProcessor);
+          reviewAudioProcessor.connect(reviewAudioContext.destination);
+          mediaRecorder = { stream, state: "recording", mimeType: "audio/wav" };
 
-          mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
-          mediaRecorder.onstop = () => {
-            if (status) status.innerText = "Transcribing speech via Intron Sahara v2.5 ASR...";
-            if (progress) progress.style.width = "90%";
-            setTimeout(() => {
-              if (progress) progress.style.width = "0%";
-              loadTriagePreset(1);
-              if (status) status.innerText = "Transcribed live speech input successfully!";
-            }, 1200);
+          finishReviewRecording = () => {
+            const sampleCount = reviewAudioBuffers.reduce((total, chunk) => total + chunk.length, 0);
+            const samples = new Float32Array(sampleCount);
+            let offset = 0;
+            reviewAudioBuffers.forEach((chunk) => {
+              samples.set(chunk, offset);
+              offset += chunk.length;
+            });
+            savedRecordingBlob = encodeWav(samples, reviewAudioContext.sampleRate);
+            reviewAudioProcessor.disconnect();
+            reviewAudioSource.disconnect();
+            reviewAudioContext.close();
+            mediaRecorder.stream.getTracks().forEach(t => t.stop());
+            if (savedRecordingUrl) URL.revokeObjectURL(savedRecordingUrl);
+            savedRecordingUrl = URL.createObjectURL(savedRecordingBlob);
+            const player = document.getElementById("saved-recording-player");
+            const download = document.getElementById("download-saved-recording");
+            const panel = document.getElementById("saved-recording-panel");
+            const upload = document.getElementById("save-upload-recording");
+            if (player) {
+              player.pause();
+              player.src = savedRecordingUrl;
+              player.load();
+              player.onloadedmetadata = () => {
+                if (status) status.innerText = "Recording saved locally and ready for playback. Review it, then upload to Intron.";
+              };
+              player.onerror = () => {
+                if (status) status.innerText = "Recording saved, but this browser cannot play its format. Use Download local copy or upload it to Intron.";
+              };
+            }
+            if (download) {
+              download.href = savedRecordingUrl;
+              download.download = "sahara-recording.wav";
+            }
+            if (panel) panel.classList.remove("hidden");
+            if (upload) upload.disabled = false;
+            if (progress) progress.style.width = "0%";
+            if (status && !player) status.innerText = "Recording saved locally. Review it, then upload to Intron.";
           };
 
-          mediaRecorder.start();
           isRecordingTriage = true;
           if (btn) btn.className = "w-14 h-14 rounded-full bg-red-500 hover:bg-red-400 text-white flex items-center justify-center text-xl font-bold shadow-lg transition animate-pulse";
           if (status) status.innerText = "Listening to code-switched audio stream...";
@@ -1120,12 +1194,46 @@
         }
       } else {
         isRecordingTriage = false;
-        if (mediaRecorder && mediaRecorder.state !== "inactive") {
-          mediaRecorder.stop();
-          mediaRecorder.stream.getTracks().forEach(t => t.stop());
+        if (mediaRecorder && mediaRecorder.state === "recording") {
+          mediaRecorder.state = "inactive";
+          if (finishReviewRecording) finishReviewRecording();
         }
         if (btn) btn.className = "w-14 h-14 rounded-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 flex items-center justify-center text-xl font-bold shadow-lg transition hover:scale-105";
         drawWaveform(false);
+      }
+    }
+
+    async function uploadSavedRecording() {
+      const status = document.getElementById("mic-status");
+      const upload = document.getElementById("save-upload-recording");
+      if (!savedRecordingBlob) {
+        if (status) status.innerText = "Record and save audio before uploading.";
+        return;
+      }
+      const apiOrigin = window.SAHARA_API_ORIGIN || `${window.location.protocol}//${window.location.hostname}:8000`;
+      const form = new FormData();
+      form.append("audio_file_blob", savedRecordingBlob, "sahara-recording.wav");
+      form.append("audio_file_name", "sahara-recording.wav");
+      form.append("use_language_asr_input", document.getElementById("intron-upload-language")?.value || "en");
+      form.append("use_category", "file_category_telehealth");
+      form.append("use_disable_llm_corrections", "FALSE");
+      if (upload) upload.disabled = true;
+      if (status) status.innerText = "Uploading the reviewed recording to Intron...";
+      try {
+        const response = await fetch(`${apiOrigin}/api/intron/stt/upload-sync`, { method: "POST", body: form });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.detail || result.message || `Upload failed (${response.status})`);
+        const transcript = result?.data?.audio_transcript || result?.data?.transcript || result?.transcript;
+        if (transcript) {
+          const target = document.getElementById("triage-transcript");
+          if (target) target.innerText = transcript;
+        }
+        if (status) status.innerText = "Recording uploaded and transcription returned from Intron.";
+      } catch (error) {
+        console.error("Intron recording upload failed:", error);
+        if (status) status.innerText = `Upload failed: ${error.message}`;
+      } finally {
+        if (upload) upload.disabled = false;
       }
     }
 

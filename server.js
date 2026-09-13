@@ -45,44 +45,22 @@ function readJsonBody(req) {
   });
 }
 
-<<<<<<< HEAD
 async function handleIntronTranscription(req, res) {
   const apiKey = process.env.INTRON_API_KEY || req.headers.authorization;
   if (!apiKey) {
     return sendJson(res, 401, {
-      error: 'Missing Intron API key. Please configure INTRON_API_KEY in Railway Variables.'
-=======
-// Secure Proxy Endpoint for Intron Voice API
-// Allows using INTRON_API_KEY from Cloudflare Environment Variables / Secrets securely on server-side
-app.post('/api/intron/transcribe', async (req, res) => {
-  const apiKey = process.env.INTRON_API_KEY || req.headers.authorization;
-
-  if (!apiKey) {
-    return res.status(401).json({
-      error: 'Missing Intron API key. Please configure INTRON_API_KEY in your Cloudflare Environment Variables or Secrets.'
->>>>>>> e55edc0c99248f6eb01fc4c7635cfa4191db062b
+      error: 'Missing Intron API key. Configure INTRON_API_KEY on the server.'
     });
   }
 
   try {
-<<<<<<< HEAD
     const payload = await readJsonBody(req);
-    const scheme = ['Bearer'].join(' ');
-    const authHeader = apiKey.indexOf(`${scheme} `) === 0
-      ? apiKey
-      : [scheme, apiKey].join(' ');
-=======
-    const authorization = apiKey.includes(' ') ? apiKey : ['Bearer', apiKey].join(' ');
->>>>>>> e55edc0c99248f6eb01fc4c7635cfa4191db062b
+    const authorization = apiKey.startsWith('Bearer ') ? apiKey : `Bearer ${apiKey}`;
     const response = await fetch('https://infer.voice.intron.io/v1/transcribe', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-<<<<<<< HEAD
-        Authorization: authHeader
-=======
-        Authorization: authorization,
->>>>>>> e55edc0c99248f6eb01fc4c7635cfa4191db062b
+        Authorization: authorization
       },
       body: JSON.stringify(payload)
     });
@@ -90,9 +68,7 @@ app.post('/api/intron/transcribe', async (req, res) => {
     return sendJson(res, response.status, data);
   } catch (error) {
     console.error('Error proxying request to Intron API:', error);
-    return sendJson(res, 500, {
-      error: 'Failed to communicate with Intron Sahara v2.5 service.'
-    });
+    return sendJson(res, 502, { error: 'Failed to communicate with Intron Voice API.' });
   }
 }
 
@@ -140,22 +116,8 @@ const server = http.createServer(async (req, res) => {
   return sendJson(res, 405, { error: 'Method not allowed' });
 });
 
-<<<<<<< HEAD
 server.listen(PORT, () => {
   console.log('================================================');
   console.log(`AfriHealth AI Server running on port ${PORT}`);
-=======
-// Serve static web app assets from current directory
-app.use(express.static(__dirname));
-
-// Single Page Application route fallback
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-app.listen(PORT, () => {
-  console.log('================================================');
-  console.log(`🚀 AfriHealth AI Server running on port ${PORT}`);
->>>>>>> e55edc0c99248f6eb01fc4c7635cfa4191db062b
   console.log('================================================');
 });

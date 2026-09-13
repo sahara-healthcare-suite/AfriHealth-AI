@@ -4,7 +4,8 @@ import logging
 import os
 
 import websockets
-from fastapi import FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect
+import requests
+from fastapi import FastAPI, File, Form, HTTPException, Response, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 logging.basicConfig(level=logging.INFO)
@@ -32,6 +33,16 @@ app.add_middleware(
 )
 
 INTRON_WS_URL = os.getenv("INTRON_WS_URL", "wss://infer.voice.intron.io/stt/v1/stream")
+INTRON_TTS_WS_URL = os.getenv("INTRON_TTS_WS_URL", "wss://infer.voice.intron.io/tts/v1/stream")
+INTRON_TTS_GENERATE_URL = os.getenv(
+    "INTRON_TTS_GENERATE_URL", "https://infer.voice.intron.io/tts/v1/generate"
+)
+INTRON_STT_UPLOAD_SYNC_URL = os.getenv(
+    "INTRON_STT_UPLOAD_SYNC_URL", "https://infer.voice.intron.io/file/v1/upload/sync"
+)
+INTRON_TTS_STATUS_URL = os.getenv(
+    "INTRON_TTS_STATUS_URL", "https://infer.voice.intron.io/tts/v1/status"
+)
 INTRON_API_KEY = os.getenv("INTRON_API_KEY", "")
 
 
@@ -135,6 +146,104 @@ def health_check():
     }
 
 
+def intron_authorization() -> str:
+    if not INTRON_API_KEY:
+        raise HTTPException(status_code=503, detail="Intron API key is not configured")
+    return f"Bearer {INTRON_API_KEY}"
+
+
+@app.post("/api/intron/tts/generate")
+def generate_intron_tts(data: dict):
+    text = data.get("text")
+    if not isinstance(text, str) or not text.strip() or len(text) > 4096:
+        raise HTTPException(status_code=400, detail="TTS text must contain 1 to 4096 characters")
+    required = ("voice_language", "voice_accent", "voice_gender")
+    if any(not isinstance(data.get(field), str) or not data[field].strip() for field in required):
+        raise HTTPException(status_code=400, detail="TTS voice language, accent, and gender are required")
+    payload = {key: value for key, value in data.items() if key in (
+        "text", "voice_language", "voice_accent", "voice_gender", "output_audio_format"
+    )}
+    try:
+        response = requests.post(
+            INTRON_TTS_GENERATE_URL,
+            headers={"Authorization": intron_authorization(), "Content-Type": "application/json"},
+            json=payload,
+            timeout=125,
+        )
+    except requests.RequestException as error:
+        logger.error("Intron TTS request failed: %s", error)
+        raise HTTPException(status_code=502, detail="Intron TTS request failed") from error
+    try:
+        body = response.json()
+    except ValueError as error:
+        raise HTTPException(status_code=502, detail="Intron TTS returned an invalid response") from error
+    return Response(
+        content=json.dumps(body),
+        status_code=response.status_code,
+        media_type="application/json",
+    )
+
+
+@app.get("/api/intron/tts/status/{text_id}")
+def get_intron_tts_status(text_id: str):
+    if not text_id or "/" in text_id:
+        raise HTTPException(status_code=400, detail="Invalid TTS text ID")
+    try:
+        response = requests.get(
+            f"{INTRON_TTS_STATUS_URL.rstrip('/')}/{text_id}",
+            headers={"Authorization": intron_authorization()},
+            timeout=30,
+        )
+    except requests.RequestException as error:
+        logger.error("Intron TTS status request failed: %s", error)
+        raise HTTPException(status_code=502, detail="Intron TTS status request failed") from error
+    try:
+        body = response.json()
+    except ValueError as error:
+        raise HTTPException(status_code=502, detail="Intron TTS returned an invalid response") from error
+    return Response(content=json.dumps(body), status_code=response.status_code, media_type="application/json")
+
+
+@app.post("/api/intron/stt/upload-sync")
+def upload_intron_stt_sync(
+    audio_file_blob: UploadFile = File(...),
+    audio_file_name: str = Form(...),
+    use_language_asr_input: str = Form(...),
+    use_diarization: str | None = Form(default=None),
+    use_category: str | None = Form(default=None),
+    use_disable_llm_corrections: str | None = Form(default=None),
+):
+    audio_bytes = audio_file_blob.file.read()
+    if not audio_bytes:
+        raise HTTPException(status_code=400, detail="Audio file is empty")
+    fields = {
+        "audio_file_name": audio_file_name,
+        "use_language_asr_input": use_language_asr_input,
+    }
+    optional_fields = {
+        "use_diarization": use_diarization,
+        "use_category": use_category,
+        "use_disable_llm_corrections": use_disable_llm_corrections,
+    }
+    fields.update({key: value for key, value in optional_fields.items() if value is not None})
+    try:
+        response = requests.post(
+            INTRON_STT_UPLOAD_SYNC_URL,
+            headers={"Authorization": intron_authorization()},
+            files={"audio_file_blob": (audio_file_name, audio_bytes, audio_file_blob.content_type)},
+            data=fields,
+            timeout=125,
+        )
+    except requests.RequestException as error:
+        logger.error("Intron synchronous STT request failed: %s", error)
+        raise HTTPException(status_code=502, detail="Intron synchronous STT request failed") from error
+    try:
+        body = response.json()
+    except ValueError as error:
+        raise HTTPException(status_code=502, detail="Intron STT returned an invalid response") from error
+    return Response(content=json.dumps(body), status_code=response.status_code, media_type="application/json")
+
+
 @app.get("/favicon.ico", include_in_schema=False)
 def favicon():
     return Response(status_code=204)
@@ -188,6 +297,46 @@ async def websocket_endpoint(websocket: WebSocket):
             "status": "error",
             "message": f"Speech Recognition Connection Error: {error}",
             "fallback_mode": False,
+        })
+        await websocket.close()
+
+
+@app.websocket("/ws/tts")
+async def tts_websocket_endpoint(websocket: WebSocket):
+    """Proxy the documented Intron streaming TTS protocol without exposing the key."""
+    await websocket.accept()
+    query = str(websocket.scope.get("query_string", b""), encoding="utf-8")
+    tts_url = f"{INTRON_TTS_WS_URL}?{query}" if query else INTRON_TTS_WS_URL
+    headers = {"Authorization": f"Bearer {INTRON_API_KEY}"} if INTRON_API_KEY else {}
+
+    try:
+        async with websockets.connect(tts_url, additional_headers=headers) as intron_ws:
+            initial_response = await intron_ws.recv()
+            if isinstance(initial_response, bytes):
+                await websocket.send_bytes(initial_response)
+            else:
+                await websocket.send_text(initial_response)
+            while True:
+                message = await websocket.receive()
+                if message.get("text"):
+                    await intron_ws.send(message["text"])
+                elif message.get("type") == "websocket.disconnect":
+                    break
+
+                response = await intron_ws.recv()
+                if isinstance(response, bytes):
+                    await websocket.send_bytes(response)
+                else:
+                    await websocket.send_text(response)
+                    if '"message_type": "COMMITTED_AUDIO"' in response:
+                        break
+    except WebSocketDisconnect:
+        logger.info("TTS client disconnected.")
+    except Exception as error:
+        logger.error("TTS connection failed: %s", error)
+        await websocket.send_json({
+            "message_type": "ERROR",
+            "error": "Text-to-speech connection failed.",
         })
         await websocket.close()
 

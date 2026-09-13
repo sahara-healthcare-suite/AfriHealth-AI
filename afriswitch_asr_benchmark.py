@@ -13,6 +13,9 @@ MODEL_CHECKPOINTS = {
     "whisper-base": "openai/whisper-base",
     "whisper-small": "openai/whisper-small",
 }
+WHISPER_LANGUAGES = {
+    "amharic": "am",
+}
 
 
 def load_rows(root: Path, configs: list[str], limit: int | None) -> list[dict[str, str]]:
@@ -47,7 +50,15 @@ def transcribe_rows(root: Path, rows: list[dict[str, str]], checkpoint: str) -> 
     for index, row in enumerate(rows, start=1):
         audio_path = root / row["local_audio"]
         audio, sample_rate = sf.read(audio_path)
-        output = recognizer({"raw": audio, "sampling_rate": sample_rate})
+        config = row["config"]
+        language = WHISPER_LANGUAGES.get(config)
+        generate_kwargs = {"task": "transcribe"}
+        if language:
+            generate_kwargs["language"] = language
+        output = recognizer(
+            {"raw": audio, "sampling_rate": sample_rate},
+            generate_kwargs=generate_kwargs,
+        )
         hypothesis = output["text"].strip()
         results.append(
             {
@@ -86,6 +97,14 @@ def main() -> None:
         "evaluation_type": "real_audio_inference",
         "configs": args.configs,
         "utterances_per_config": args.limit_per_config,
+        "forced_whisper_languages": {
+            config: WHISPER_LANGUAGES.get(config) for config in args.configs
+        },
+        "language_handling_note": (
+            "Whisper checkpoints support forced Amharic (am). The checkpoints "
+            "do not support Oromo (om), so Oromo uses automatic detection in "
+            "transcription mode rather than an incorrect unsupported code."
+        ),
         "models": {},
         "limitations": [
             "Whisper checkpoints are multilingual model checkpoints, not clinical validation models.",

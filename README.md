@@ -36,6 +36,49 @@ The browser connects to `ws://localhost:8000/ws/stream` when served on another
 local port. For a deployed API, set `window.SAHARA_API_ORIGIN` before the main
 script loads to the HTTPS API origin.
 
+The documented Intron streaming TTS protocol is proxied at
+`ws://localhost:8000/ws/tts`. Pass the Intron TTS query parameters
+(`voice_accent`, `voice_gender`, `voice_language`, and optionally
+`output_audio_format`) through this route. The proxy forwards the documented
+`INPUT_TEXT_CHUNK`, `FETCH_AUDIO_CHUNK`, and `COMMIT` messages and returns the
+Intron session responses, including base64 audio payloads.
+
+The documented synchronous bridges are also available:
+
+- `POST /api/intron/tts/generate` for text up to 4096 characters;
+- `GET /api/intron/tts/status/{text_id}` for timed-out TTS jobs;
+- `POST /api/intron/stt/upload-sync` for audio files up to Intron's 120-second
+  synchronous limit.
+
+These routes keep `INTRON_API_KEY` on the FastAPI server and forward only the
+documented request fields. Configure the key locally with
+`$env:INTRON_API_KEY = "your-key"`; never place it in frontend source.
+
+The Voice Triage recording control saves reviewed microphone audio as a local
+WAV recording before upload. WAV playback is used for browser compatibility,
+and the file is sent to the synchronous STT bridge only after the user presses
+the upload button. Select either Amharic-English or Oromo-English code-switch
+before uploading; the corresponding Intron language code is sent with the
+request.
+
+For the approved 15-case clinical package, validate the canonical recording
+selection without uploading:
+
+```powershell
+python clinical_validation_upload.py
+```
+
+After confirming the selected files, upload them through the running local
+FastAPI bridge:
+
+```powershell
+python clinical_validation_upload.py --upload
+```
+
+This uses one Amharic-English recording per case, keeps the reference
+transcript and target terms in the results, and sends `am` as the Intron
+language code. It intentionally excludes extra duplicate files.
+
 ### Intron proxy
 
 The optional Node proxy keeps `INTRON_API_KEY` on the server:
