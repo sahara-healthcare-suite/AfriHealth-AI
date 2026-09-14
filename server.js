@@ -75,7 +75,8 @@ async function handleIntronTranscription(req, res) {
 function serveStatic(res, requestUrl) {
   const requestedPath = requestUrl.pathname === '/' ? '/index.html' : requestUrl.pathname;
   const filePath = path.resolve(ROOT, `.${requestedPath}`);
-  if (!filePath.startsWith(ROOT)) {
+  const relativePath = path.relative(ROOT, filePath);
+  if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
     return sendJson(res, 403, { error: 'Forbidden' });
   }
 

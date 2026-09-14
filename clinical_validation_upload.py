@@ -25,12 +25,13 @@ def canonical_audio(root: Path, case_id: str) -> Path:
 
 
 def main() -> None:
+    project_root = Path(__file__).resolve().parent
     parser = argparse.ArgumentParser(
         description="Upload the approved canonical clinical validation recordings."
     )
     parser.add_argument(
         "--input",
-        default=r"C:\Users\kingr\Desktop\clinical-validation-inputs",
+        default=str(project_root / "clinical_validation" / "inputs"),
         help="Directory containing the recordings and reference CSV",
     )
     parser.add_argument("--endpoint", default="http://127.0.0.1:8000/api/intron/stt/upload-sync")

@@ -196,11 +196,17 @@ async def run_benchmark():
     w2v_ea = f"{summary['Meta Wav2Vec2 (XLS-R)']['clinical_entity_accuracy']*100:.2f}%"
     w2v_faas = summary['Meta Wav2Vec2 (XLS-R)']['faas_score']
 
-    md_content = f"""# Speech Recognition Benchmark Report
+    md_content = f"""# Fixture Speech Recognition Benchmark Report
+
+> **Evidence limitation:** This is a reproducible software fixture, not an
+> independent audio benchmark. The hypotheses are embedded in
+> `benchmark_suite.py`, and the referenced sample audio is not included.
+> Do not present these values as production performance or a real model
+> ranking.
 
 | Model | Average WER ↓ | Clinical Entity Accuracy ↑ | FAAS Score (dB) ↑ | Status |
 | :--- | :---: | :---: | :---: | :---: |
-| **Intron Sahara v2.5** | **{intron_wer}** | **{intron_ea}** | **{intron_faas}** | **Benchmark Winner** |
+| **Intron Sahara v2.5** | **{intron_wer}** | **{intron_ea}** | **{intron_faas}** | Fixture reference |
 | OpenAI Whisper (Medium) | {whisper_wer} | {whisper_ea} | {whisper_faas} | Baseline |
 | Meta Wav2Vec2 (XLS-R) | {w2v_wer} | {w2v_ea} | {w2v_faas} | Baseline |
 
@@ -208,6 +214,10 @@ async def run_benchmark():
 1. **Word Error Rate (WER)**: Normalized string distance metric (S + D + I) / N.
 2. **Clinical Entity Accuracy**: Recall rate of medical terms (symptoms, dosages, diagnoses).
 3. **Fairness-Adjusted ASR Score (FAAS)**: Calculated as 10 * log10(Clinical Entity Accuracy / WER).
+
+The separate 15-case clinical validation baseline reported 56.38% mean WER,
+44.33% target-term recall, and critical-term misses in 6 cases. That result is
+for clinician review only and does not support autonomous clinical use.
 """
     with open(OUTPUT_MARKDOWN_PATH, "w") as f:
         f.write(md_content)

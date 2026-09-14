@@ -18,7 +18,7 @@ The challenge brief requests:
 | Solution description | Product UI and workflow modules in `index.html` | Covered |
 | Working prototype | Browser app served by `npm start` | Covered; record a final demo |
 | Technical documentation | `README.md`, `main.py`, `server.js`, `benchmark_suite.py` | Covered |
-| Three-model benchmark | `benchmark_suite.py`, `benchmark_report.json`, `BENCHMARK_RESULTS.md` | Covered with limitations |
+| Three-model benchmark | `benchmark_suite.py`, `benchmark_report.json`, `BENCHMARK_RESULTS.md` | Fixture covered; real comparison still required |
 | Ethics and inclusion | `RESPONSIBLE_AI.md` | Covered; obtain consent evidence |
 | Demo video link | External submission artifact | **Still required** |
 | Benchmark audio metadata | `BENCHMARK_METADATA_TEMPLATE.csv` | Fill with real consented data |
@@ -66,7 +66,9 @@ Record a 2–3 minute unlisted video showing:
 
 ## Final pre-submission checklist
 
-- [ ] Regenerate both benchmark output files from the selected protocol.
+- [x] Regenerate the fixture benchmark and AfriSwitch coverage report.
+- [ ] Replace the fixture comparison with independently generated model outputs
+      before claiming a three-model performance ranking.
 - [ ] Record the prepared [DEMO_SCRIPT.md](./DEMO_SCRIPT.md) and add the
       unlisted/public URL to the submission form.
 - [ ] Fill [BENCHMARK_METADATA_TEMPLATE.csv](./BENCHMARK_METADATA_TEMPLATE.csv)
