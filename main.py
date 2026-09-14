@@ -248,6 +248,7 @@ async def intron_stt_upload_sync(request: Request):
         "audio_file_blob": (filename, file_bytes, audio_file.content_type or "audio/wav")
     }
     data_payload = {
+        "audio_file_name": filename,
         "use_language_asr_input": form.get("use_language_asr_input", "am"),
         "use_category": form.get("use_category", "file_category_telehealth"),
         "use_disable_llm_corrections": form.get("use_disable_llm_corrections", "FALSE"),
