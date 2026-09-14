@@ -181,8 +181,3 @@ python afriswitch_import.py --all-configs --output .\clinical_validation\afriswi
 
 See [RESPONSIBLE_AI.md](./RESPONSIBLE_AI.md) for the human-review, consent,
 privacy, and inclusion requirements that apply before clinical deployment.
-
-For the final handoff, see [ARCHITECTURE.md](./ARCHITECTURE.md) and
-[FINAL_SUBMISSION_GUIDE.md](./FINAL_SUBMISSION_GUIDE.md). The repository does
-not include a demo video; [DEMO_SCRIPT.md](./DEMO_SCRIPT.md) is provided for a
-live demonstration or a separately hosted recording if required.
