@@ -78,7 +78,7 @@ Set the API origin in the deployed page before the application script loads:
 
 ```html
 <script>
-  window.SAHARA_API_ORIGIN = "https://api.example.org";
+  window.SAHARA_API_ORIGIN = "https://sahara-healthcare-suite-production-e636.up.railway.app";
 </script>
 ```
 

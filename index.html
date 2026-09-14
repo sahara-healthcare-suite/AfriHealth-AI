@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AfriHealth AI: Unified 3-in-1 Voice Care Suite</title>
-  
+
   <!-- Progressive Web App (PWA) Web Manifest via Data URI -->
   <link rel="manifest" href="data:application/manifest+json;utf8,%7B%22name%22%3A%22AfriHealth%20AI%20Voice%20Care%20Suite%22%2C%22short_name%22%3A%22AfriHealth%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23020617%22%2C%22theme_color%22%3A%22%2310b981%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22https%3A%2F%2Fplacehold.co%2F192x192%2F10b981%2F020617%3Ftext%3DAfriHealth%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fpng%22%7D%5D%7D">
   <meta name="theme-color" content="#020617">
@@ -21,7 +21,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  
+
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -44,7 +44,7 @@
       }
     }
   </script>
-  
+
   <style>
     /* Custom Scrollbar & Pulse Animation Defaults */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -202,7 +202,7 @@
           <div class="lg:col-span-5 bg-slate-950 rounded-xl p-5 border border-slate-800 flex flex-col justify-between">
             <div>
               <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4"><i class="fa-solid fa-microphone"></i> Select Clinical Audio Preset or Record Live</h3>
-              
+
               <div class="space-y-3 mb-5">
                 <button onclick="loadTriagePreset(1)" class="w-full text-left p-3 rounded-lg border border-slate-800 hover:border-emerald-500/50 bg-slate-900 transition flex items-center justify-between group">
                   <div>
@@ -428,7 +428,7 @@
           <div class="lg:col-span-5 bg-slate-950 p-5 rounded-xl border border-slate-800 space-y-4 flex flex-col justify-between">
             <div>
               <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-phone-volume text-indigo-400"></i> Outpatient Call Simulator</h3>
-              
+
               <div class="p-3 bg-slate-900 rounded-lg border border-slate-800 space-y-2 mb-4">
                 <div class="flex justify-between text-xs">
                   <span class="text-slate-400">Patient:</span>
@@ -576,7 +576,7 @@
           <div class="lg:col-span-5 bg-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col justify-between">
             <div>
               <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-table text-teal-400"></i> Clinician Human-In-The-Loop (HITL) Scores</h3>
-              
+
               <div class="overflow-x-auto">
                 <table class="w-full text-left text-xs border-collapse">
                   <thead>
@@ -698,7 +698,9 @@
   <footer class="border-t border-slate-800 bg-slate-950 py-4 px-6 text-center text-xs text-slate-500">
     AfriHealth AI &bull; Clinician-reviewed voice documentation &bull; Sahara Code-Switch Africa Challenge
   </footer>
-
+<script>
+  window.SAHARA_API_ORIGIN = "https://sahara-healthcare-suite-production-e636.up.railway.app";
+</script>
 <script>
   let mediaStream = null;
   let workletNode = null;
@@ -818,9 +820,9 @@
 
       mediaStream = existingStream || await navigator.mediaDevices.getUserMedia({ audio: true });
       audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
-      
+
       await audioContext.audioWorklet.addModule('pcm-processor.js');
-      
+
       const source = audioContext.createMediaStreamSource(mediaStream);
       workletNode = new AudioWorkletNode(audioContext, 'pcm-processor');
 
@@ -1060,29 +1062,29 @@
       }
     }
 
-    async function testIntronApiPing() {
-      const sub = document.getElementById('diag-api-sub');
-      if (sub) sub.innerText = "Pinging Sahara API ...";
+ async function testIntronApiPing() {
+  const sub = document.getElementById('diag-api-sub');
+  if (sub) sub.innerText = "Pinging Sahara API ...";
 
-      const startTime = Date.now();
-      const apiOrigin = window.SAHARA_API_ORIGIN || (
-        window.location.port === '8000'
-          ? window.location.origin
-          : `${window.location.protocol === 'https:' ? 'https:' : 'http:'}//${window.location.hostname}:8000`
-      );
-      try {
-        const response = await fetch(`${apiOrigin}/`, { headers: { Accept: 'application/json' } });
-        const latency = Date.now() - startTime;
-        if (!response.ok) {
-          throw new Error(`API returned HTTP ${response.status}`);
-        }
-        const payload = await response.json();
-        const status = payload.intron_connected ? 'API online; Intron key configured' : 'API online; Intron key not configured';
-        if (sub) sub.innerText = `✅ ${status} (${latency}ms latency)`;
-      } catch (error) {
-        if (sub) sub.innerText = `❌ API unavailable: ${error.message}`;
-      }
+  const startTime = Date.now();
+  const apiOrigin = window.SAHARA_API_ORIGIN || (
+    window.location.port === '8000'
+      ? window.location.origin
+      : `${window.location.protocol === 'https:' ? 'https:' : 'http:'}//${window.location.hostname}:8000`
+  );
+  try {
+    const response = await fetch(`${apiOrigin}/health`, { headers: { Accept: 'application/json' } });
+    const latency = Date.now() - startTime;
+    if (!response.ok) {
+      throw new Error(`API returned HTTP ${response.status}`);
     }
+    const payload = await response.json();
+    const status = payload.intron_configured ? 'API online; Intron key configured' : 'API online; Intron key not configured';
+    if (sub) sub.innerText = `✅ ${status} (${latency}ms latency)`;
+  } catch (error) {
+    if (sub) sub.innerText = `❌ API unavailable: ${error.message}`;
+  }
+}
 
     function loadTriagePreset(presetNum) {
       const caseId = `GOLD-ETH-00${presetNum}`;
@@ -1099,7 +1101,7 @@
       if (confEl) confEl.innerText = `Confidence: ${(96.2 + presetNum * 0.8).toFixed(1)}%`;
 
       if (symptomsEl) {
-        symptomsEl.innerHTML = caseData.json.symptoms.map(s => 
+        symptomsEl.innerHTML = caseData.json.symptoms.map(s =>
           `<span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded text-xs font-semibold"><i class="fa-solid fa-circle-check mr-1 text-[10px]"></i>${s}</span>`
         ).join('');
       }
@@ -1267,7 +1269,7 @@
       document.getElementById('ehr-pulse').value = "88";
       document.getElementById('ehr-temp').value = "37.8";
       document.getElementById('ehr-meds').value = "1. Amoxicillin 500mg TID x 7 Days\n2. Paracetamol 500mg PRN for Fever";
-      
+
       const icd = document.getElementById('ehr-icd');
       if (icd) icd.innerText = "ICD-10 Code: R07.9 (Unspecified Chest Pain) / Pyrexia R50.9";
 
@@ -1697,7 +1699,7 @@ Temperature     : ${temp}
 DIAGNOSIS & MEDICATIONS PRESCRIBED
 -------------------------------------------------------
 ICD-10 Diagnosis : R07.9 (Chest Pain, Unspecified) & Pyrexia
-Prescription     : 
+Prescription     :
 ${meds}
 
 -------------------------------------------------------
