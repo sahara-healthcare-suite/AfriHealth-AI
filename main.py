@@ -16,7 +16,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import httpx
 from pydantic import BaseModel
-
+from fastapi import WebSocket, WebSocketDisconnect
+import asyncio
+import base64
+import websockets
 # Initialize logger
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("afrihealth_gateway")
@@ -154,6 +157,119 @@ async def transcribe_audio(
     except Exception as e:
         logger.error(f"Internal gateway error: {str(e)}")
         raise HTTPException(status_code=500, detail="Audio transcription gateway processing failed.")
+INTRON_STREAM_ENDPOINT = "wss://infer.voice.intron.io/stt/v1/stream"
+
+@app.websocket("/ws/stream")
+async def websocket_stream(websocket: WebSocket):
+    await websocket.accept()
+
+    language = websocket.query_params.get("use_language_asr_input", "am")
+
+    if not INTRON_API_KEY:
+        await websocket.send_json({"error": "Intron API key not configured on server"})
+        await websocket.close()
+        return
+
+    intron_url = f"{INTRON_STREAM_ENDPOINT}?sample_rate=16000&bit_rate=16&num_channels=1&use_language_asr_input={language}"
+
+    try:
+        async with websockets.connect(
+            intron_url,
+            extra_headers={"Authorization": f"Bearer {INTRON_API_KEY}"}
+        ) as intron_ws:
+
+            async def forward_browser_to_intron():
+                try:
+                    while True:
+                        data = await websocket.receive()
+                        if data.get("bytes") is not None:
+                            audio_b64 = base64.b64encode(data["bytes"]).decode("utf-8")
+                            await intron_ws.send(json.dumps({
+                                "message_type": "INPUT_AUDIO_CHUNK",
+                                "audio_base_64": audio_b64
+                            }))
+                        elif data.get("text") is not None:
+                            try:
+                                msg = json.loads(data["text"])
+                                if msg.get("event") == "stop":
+                                    await intron_ws.send(json.dumps({"message_type": "COMMIT"}))
+                            except json.JSONDecodeError:
+                                pass
+                except WebSocketDisconnect:
+                    pass
+
+            async def forward_intron_to_browser():
+                async for message in intron_ws:
+                    payload = json.loads(message)
+                    msg_type = payload.get("message_type")
+                    if msg_type == "PARTIAL_TRANSCRIPT":
+                        await websocket.send_json({"transcript": payload.get("transcript", "")})
+                    elif msg_type == "COMMITTED_TRANSCRIPT":
+                        await websocket.send_json({"transcript": payload.get("transcript_text", "")})
+                    elif msg_type in ("ERROR", "INPUT_ERROR", "AUTHENTICATION_ERROR", "QUOTA_EXCEEDED"):
+                        await websocket.send_json({"error": payload.get("message", msg_type)})
+
+            forward_task = asyncio.create_task(forward_browser_to_intron())
+            backward_task = asyncio.create_task(forward_intron_to_browser())
+            done, pending = await asyncio.wait(
+                [forward_task, backward_task], return_when=asyncio.FIRST_COMPLETED
+            )
+            for task in pending:
+                task.cancel()
+
+    except Exception as e:
+        logger.error(f"Intron streaming bridge error: {e}")
+        try:
+            await websocket.send_json({"error": str(e)})
+        except Exception:
+            pass
+    finally:
+        try:
+            await websocket.close()
+        except Exception:
+            pass
+
+INTRON_SYNC_UPLOAD_ENDPOINT = "https://infer.voice.intron.io/file/v1/upload/sync"
+
+@app.post("/api/intron/stt/upload-sync")
+async def intron_stt_upload_sync(request: Request):
+    if not INTRON_API_KEY:
+        raise HTTPException(status_code=503, detail="Intron API key not configured on server")
+
+    form = await request.form()
+    audio_file = form.get("audio_file_blob")
+    if audio_file is None:
+        raise HTTPException(status_code=400, detail="Missing audio_file_blob in form data")
+
+    file_bytes = await audio_file.read()
+    filename = form.get("audio_file_name") or getattr(audio_file, "filename", "recording.wav")
+
+    files_payload = {
+        "audio_file_blob": (filename, file_bytes, audio_file.content_type or "audio/wav")
+    }
+    data_payload = {
+        "use_language_asr_input": form.get("use_language_asr_input", "am"),
+        "use_category": form.get("use_category", "file_category_telehealth"),
+        "use_disable_llm_corrections": form.get("use_disable_llm_corrections", "FALSE"),
+    }
+    headers = {"Authorization": f"Bearer {INTRON_API_KEY}"}
+
+    try:
+        async with httpx.AsyncClient(timeout=130.0) as client:
+            response = await client.post(
+                INTRON_SYNC_UPLOAD_ENDPOINT,
+                headers=headers,
+                data=data_payload,
+                files=files_payload
+            )
+            response.raise_for_status()
+            return response.json()
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Intron sync upload error: {e.response.status_code} - {e.response.text}")
+        raise HTTPException(status_code=e.response.status_code, detail=f"Intron upload error: {e.response.text}")
+    except Exception as e:
+        logger.error(f"Intron sync upload gateway error: {e}")
+        raise HTTPException(status_code=500, detail="Audio upload processing failed.")
 
 if __name__ == "__main__":
     import uvicorn
