@@ -691,8 +691,8 @@ def _get_whisper_pipeline():
 def _transcribe_with_whisper(audio_path: str) -> str:
     """Resamples audio to 16kHz (Whisper's expected rate) and transcribes it."""
     import torchaudio
-
-    waveform, sample_rate = torchaudio.load(audio_path)
+    waveform, sample_rate = torchaudio.load(audio_path, backend="soundfile")
+    # waveform, sample_rate = torchaudio.load(audio_path)
     if sample_rate != 16000:
         resampler = torchaudio.transforms.Resample(orig_freq=sample_rate, new_freq=16000)
         waveform = resampler(waveform)
