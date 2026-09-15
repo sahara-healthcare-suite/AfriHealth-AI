@@ -78,6 +78,9 @@
       </div>
 
       <div class="flex items-center gap-2">
+        <button id="voice-toggle-btn" onclick="toggleVoiceOutput()" class="bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-emerald-500/30 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2">
+          <i id="voice-toggle-icon" class="fa-solid fa-volume-high"></i> <span id="voice-toggle-label">AI Voice: On</span>
+        </button>
         <button onclick="openModal('diagnostics-modal')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-2 border border-slate-700">
           <i class="fa-solid fa-microchip text-teal-400"></i> Diagnostics
         </button>
@@ -154,6 +157,19 @@
           </div>
           <button onclick="testIntronApiPing()" class="bg-slate-800 hover:bg-slate-700 text-indigo-400 border border-indigo-500/30 px-3 py-1.5 rounded font-semibold transition">
             Ping API
+          </button>
+        </div>
+
+        <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <i class="fa-solid fa-volume-high text-purple-400 text-base"></i>
+            <div>
+              <div class="font-bold text-white">Speech Synthesis (AI Voice Response)</div>
+              <div class="text-slate-400" id="diag-tts-sub">Checking browser text-to-speech support...</div>
+            </div>
+          </div>
+          <button onclick="testSpeechSynthesis()" class="bg-slate-800 hover:bg-slate-700 text-purple-300 border border-purple-500/30 px-3 py-1.5 rounded font-semibold transition">
+            Test Voice
           </button>
         </div>
 
@@ -307,6 +323,9 @@
                 <div id="triage-recommendation" class="text-xs text-slate-400 mt-2">
                   Actionable referral recommendation will be generated automatically.
                 </div>
+                <button id="btn-speak-recommendation" onclick="replayRecommendation()" disabled class="mt-3 w-full bg-slate-900 disabled:opacity-40 hover:bg-slate-800 text-purple-300 border border-purple-500/30 text-xs font-bold py-2 rounded-lg transition flex items-center justify-center gap-2">
+                  <i class="fa-solid fa-volume-high"></i> <span id="btn-speak-label">Speak recommendation aloud</span>
+                </button>
               </div>
             </div>
           </div>
@@ -334,9 +353,19 @@
           <div class="lg:col-span-6 space-y-4">
             <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
               <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2"><i class="fa-solid fa-headset text-teal-400"></i> Doctor-Patient Code-Switched Conversation</h3>
-              <div id="ehr-transcript-box" class="p-4 bg-slate-900 rounded-lg border border-slate-800 text-xs font-mono leading-relaxed space-y-2 h-[260px] overflow-y-auto text-slate-300">
-                <p class="text-slate-500 italic">Click "Load Consultation Demo" to observe real-time clinical dialogue extraction...</p>
+
+              <div class="flex items-center gap-2 mb-3">
+                <button id="btn-ehr-record" onclick="toggleEHRRecording()" class="h-10 px-4 rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold flex items-center gap-2 transition">
+                  <i class="fa-solid fa-microphone"></i> Start Consultation Recording
+                </button>
+                <span id="ehr-live-badge" class="text-[10px] text-slate-500 font-mono">Idle</span>
               </div>
+              <p id="ehr-record-status" class="text-[11px] text-slate-500 mb-3">Record the live doctor-patient conversation; the chart on the right auto-fills as fields are recognized.</p>
+
+              <div id="ehr-transcript-box" class="p-4 bg-slate-900 rounded-lg border border-slate-800 text-xs font-mono leading-relaxed space-y-2 h-[260px] overflow-y-auto text-slate-300">
+                <p class="text-slate-500 italic">Click "Start Consultation Recording" to capture live audio, or "Load Consultation Demo" for a scripted example...</p>
+              </div>
+              <p class="text-[10px] text-amber-400/80 mt-2"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Auto-extracted fields require clinician verification before committing to EHR.</p>
             </div>
 
             <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 flex items-center justify-between">
@@ -462,8 +491,7 @@
                 <i id="call-icon" class="fa-solid fa-phone"></i>
               </div>
               <div id="call-status-text" class="text-xs font-semibold text-slate-300">Call Idle</div>
-              <div id="call-su
-              xt" class="text-xs text-slate-500 mt-0.5">Select a scenario above to start outbound AI call</div>
+              <div id="call-subtext" class="text-xs text-slate-500 mt-0.5">Select a scenario above to start outbound AI call</div>
             </div>
           </div>
 
@@ -524,7 +552,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-xs text-amber-100">
             <h3 class="font-bold text-amber-300 mb-2"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Fixture benchmark limitation</h3>
-            <p>The displayed matrix uses embedded hypotheses and illustrative case values. Its 0% WER-style result is reproducible as a software fixture, but it is not independent audio inference or proof of production superiority.</p>
+            <p>The displayed matrix uses embedded hypotheses and illustrative case values. Its 0% WER-style result is reproducible as a software fixture, but it is not independent audio inference or proof of production superiority. The "All Cases" row is calculated live as the average of the four per-case rows below, not a separately hardcoded figure.</p>
           </div>
           <div class="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-xs text-red-100">
             <h3 class="font-bold text-red-300 mb-2"><i class="fa-solid fa-user-doctor mr-1"></i> Measured clinical validation</h3>
@@ -805,11 +833,13 @@
         : 'mt-2 text-xs font-extrabold px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 inline-block';
       badgeEl.innerText = emergency ? 'URGENT - CLINICIAN REVIEW REQUIRED' : urgent ? 'URGENT REVIEW' : 'REVIEW REQUIRED';
     }
+    const recommendationText = emergency
+      ? 'Seek urgent clinical assessment; do not rely on automated triage alone.'
+      : 'Clinician review required before diagnosis, treatment, or referral.';
     if (recEl) {
-      recEl.innerText = emergency
-        ? 'Seek urgent clinical assessment; do not rely on automated triage alone.'
-        : 'Clinician review required before diagnosis, treatment, or referral.';
+      recEl.innerText = recommendationText;
     }
+    speakRecommendation(recommendationText);
   }
 
   async function startAudioStreaming(socket, existingStream = null) {
@@ -896,20 +926,6 @@
   }
 
     const GOLD_STANDARD_DATASET = {
-      "AGGREGATE": {
-        title: "All Cases Aggregated Corpus Average",
-        chartData: {
-          labels: ['Intron Sahara v2.5', 'OpenAI Whisper v3', 'Gemini 3 Flash'],
-          wer: [8.4, 19.2, 14.6],
-          cer: [3.1, 8.7, 5.9]
-        },
-        matrix: [
-          { model: "Intron Sahara v2.5", wer: "8.4%", cer: "3.1%", factuality: "4.9/5", safety: "5.0/5", class: "text-emerald-400 font-bold" },
-          { model: "OpenAI Whisper v3", wer: "19.2%", cer: "8.7%", factuality: "3.8/5", safety: "3.9/5", class: "text-slate-300" },
-          { model: "Gemini 3 Flash", wer: "14.6%", cer: "5.9%", factuality: "4.2/5", safety: "4.3/5", class: "text-indigo-400" }
-        ],
-        comment: "Fixture/demo comparison only. These embedded values are not independent audio inference and must not be used as clinical performance claims."
-      },
       "GOLD-ETH-001": {
         title: "Pediatric High Fever & Severe Cough",
         json: {
@@ -1000,6 +1016,53 @@
       }
     };
 
+    // The "All Cases" aggregate is computed live from the four per-case
+    // rows above (average WER/CER/factuality/safety per model) rather than
+    // being a separately hardcoded block, so it can never drift out of
+    // sync with the individual cases.
+    (function buildAggregateFromCases() {
+      const caseKeys = Object.keys(GOLD_STANDARD_DATASET);
+      const numModels = GOLD_STANDARD_DATASET[caseKeys[0]].matrix.length;
+      const parseNum = (s) => parseFloat(String(s).replace('%', '').replace('/5', ''));
+
+      const werSums = new Array(numModels).fill(0);
+      const cerSums = new Array(numModels).fill(0);
+      const factSums = new Array(numModels).fill(0);
+      const safeSums = new Array(numModels).fill(0);
+
+      caseKeys.forEach((key) => {
+        GOLD_STANDARD_DATASET[key].matrix.forEach((row, i) => {
+          werSums[i] += parseNum(row.wer);
+          cerSums[i] += parseNum(row.cer);
+          factSums[i] += parseNum(row.factuality);
+          safeSums[i] += parseNum(row.safety);
+        });
+      });
+
+      const n = caseKeys.length;
+      const avgWer = werSums.map((v) => v / n);
+      const avgCer = cerSums.map((v) => v / n);
+      const sampleMatrix = GOLD_STANDARD_DATASET[caseKeys[0]].matrix;
+
+      GOLD_STANDARD_DATASET["AGGREGATE"] = {
+        title: "All Cases Aggregated Corpus Average",
+        chartData: {
+          labels: sampleMatrix.map((r) => r.model),
+          wer: avgWer.map((v) => Math.round(v * 10) / 10),
+          cer: avgCer.map((v) => Math.round(v * 10) / 10)
+        },
+        matrix: sampleMatrix.map((row, i) => ({
+          model: row.model,
+          wer: `${(werSums[i] / n).toFixed(1)}%`,
+          cer: `${(cerSums[i] / n).toFixed(1)}%`,
+          factuality: `${(factSums[i] / n).toFixed(1)}/5`,
+          safety: `${(safeSums[i] / n).toFixed(1)}/5`,
+          class: row.class
+        })),
+        comment: "Fixture/demo comparison only, averaged live from the 4 gold cases below. These embedded values are not independent audio inference and must not be used as clinical performance claims."
+      };
+    })();
+
     function switchTab(tabId) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
       document.querySelectorAll('.nav-tab').forEach(btn => {
@@ -1086,6 +1149,97 @@
   }
 }
 
+    // ---------------------------------------------------------------------
+    // AI VOICE "SPEAKING BACK" FEATURE
+    // Uses the browser's built-in speechSynthesis API so no extra backend
+    // dependency or API key is required. Amharic system voices are used
+    // automatically when the browser/OS provides one; otherwise it falls
+    // back to the best available English voice.
+    // ---------------------------------------------------------------------
+    let voiceOutputEnabled = true;
+    let cachedVoices = [];
+
+    function loadVoicesOnce() {
+      if (!('speechSynthesis' in window)) return;
+      cachedVoices = window.speechSynthesis.getVoices();
+      if (!cachedVoices.length) {
+        window.speechSynthesis.onvoiceschanged = () => {
+          cachedVoices = window.speechSynthesis.getVoices();
+        };
+      }
+    }
+
+    function pickVoice(preferLang) {
+      if (!cachedVoices.length) cachedVoices = window.speechSynthesis.getVoices();
+      const exact = cachedVoices.find(v => v.lang && v.lang.toLowerCase().startsWith(preferLang.toLowerCase()));
+      if (exact) return exact;
+      const english = cachedVoices.find(v => v.lang && v.lang.toLowerCase().startsWith('en'));
+      return english || cachedVoices[0] || null;
+    }
+
+    function speakText(text, { lang = 'en-US', onstart, onend } = {}) {
+      if (!voiceOutputEnabled || !text) return;
+      if (!('speechSynthesis' in window)) {
+        if (onend) onend();
+        return;
+      }
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      const voice = pickVoice(lang);
+      if (voice) utterance.voice = voice;
+      utterance.lang = voice ? voice.lang : lang;
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      if (onstart) utterance.onstart = onstart;
+      if (onend) { utterance.onend = onend; utterance.onerror = onend; }
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function toggleVoiceOutput() {
+      voiceOutputEnabled = !voiceOutputEnabled;
+      if (!voiceOutputEnabled && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+      const icon = document.getElementById('voice-toggle-icon');
+      const label = document.getElementById('voice-toggle-label');
+      if (icon) icon.className = voiceOutputEnabled ? 'fa-solid fa-volume-high' : 'fa-solid fa-volume-xmark';
+      if (label) label.textContent = voiceOutputEnabled ? 'AI Voice: On' : 'AI Voice: Off';
+    }
+
+    let lastRecommendationText = '';
+    function speakRecommendation(text) {
+      lastRecommendationText = text;
+      const btn = document.getElementById('btn-speak-recommendation');
+      if (btn) btn.disabled = !text;
+      speakText(text, {
+        lang: 'en-US',
+        onstart: () => setSpeakButtonState(true),
+        onend: () => setSpeakButtonState(false)
+      });
+    }
+
+    function setSpeakButtonState(isSpeaking) {
+      const icon = document.querySelector('#btn-speak-recommendation i');
+      const label = document.getElementById('btn-speak-label');
+      if (icon) icon.className = isSpeaking ? 'fa-solid fa-waveform-lines animate-pulse' : 'fa-solid fa-volume-high';
+      if (label) label.textContent = isSpeaking ? 'Speaking...' : 'Speak recommendation aloud';
+    }
+
+    function replayRecommendation() {
+      if (lastRecommendationText) speakRecommendation(lastRecommendationText);
+    }
+
+    function testSpeechSynthesis() {
+      const sub = document.getElementById('diag-tts-sub');
+      if (!('speechSynthesis' in window)) {
+        if (sub) sub.innerText = "❌ speechSynthesis is not supported in this browser.";
+        return;
+      }
+      if (sub) sub.innerText = "🔊 Playing test phrase...";
+      speakText("AfriHealth AI voice response system is online.", {
+        lang: 'en-US',
+        onend: () => { if (sub) sub.innerText = "✅ Speech synthesis is working."; }
+      });
+    }
+
     function loadTriagePreset(presetNum) {
       const caseId = `GOLD-ETH-00${presetNum}`;
       const caseData = GOLD_STANDARD_DATASET[caseId];
@@ -1106,6 +1260,7 @@
         ).join('');
       }
 
+      let recommendationText = "";
       if (badgeEl) {
         if (presetNum === 1) {
           badgeEl.className = "mt-2 text-xs font-extrabold px-3 py-1.5 rounded-lg bg-yellow-500/20 text-yellow-300 border border-yellow-500/40 inline-block";
@@ -1119,15 +1274,15 @@
         }
       }
 
-      if (recEl) {
-        if (presetNum === 1) {
-          recEl.innerText = "Action: Immediate referral to Primary Health Care Center. Administer oral rehydration & antipyretic.";
-        } else if (presetNum === 2) {
-          recEl.innerText = "Action: Clinic observation, ORS rehydration, and vitals check within 2 hours.";
-        } else {
-          recEl.innerText = "Action: Urgent ambulance dispatch to district emergency care. High respiratory risk.";
-        }
+      if (presetNum === 1) {
+        recommendationText = "Action: Immediate referral to Primary Health Care Center. Administer oral rehydration and antipyretic.";
+      } else if (presetNum === 2) {
+        recommendationText = "Action: Clinic observation, ORS rehydration, and vitals check within 2 hours.";
+      } else {
+        recommendationText = "Action: Urgent ambulance dispatch to district emergency care. High respiratory risk.";
       }
+      if (recEl) recEl.innerText = recommendationText;
+      speakRecommendation(recommendationText);
     }
 
     async function toggleTriageRecord() {
@@ -1292,8 +1447,291 @@
       }
     }
 
-    function runFollowUpSimulation(type) {
+    // ---------------------------------------------------------------------
+    // MODULE 2: LIVE CONSULTATION RECORDING -> AUTO-FILLED EHR CHART
+    //
+    // Two capture paths, chosen automatically:
+    //  A) Browser on-device speech recognition (SpeechRecognition), when
+    //     available (Chrome/Edge) -- transcribes live with no backend call,
+    //     and fields extract incrementally as the doctor/patient speak.
+    //  B) Fallback: record raw audio with MediaRecorder and send it to the
+    //     existing /api/intron/stt/upload-sync gateway route for
+    //     transcription, then run the same field extractor on the result.
+    // ---------------------------------------------------------------------
+    let ehrRecognition = null;
+    let ehrRecording = false;
+    let ehrMediaRecorder = null;
+    let ehrAudioChunks = [];
+    let ehrLiveTranscript = "";
+
+    const EHR_MED_VOCAB = [
+      "Paracetamol", "Amoxicillin", "Ciprofloxacin", "Metronidazole",
+      "Artemether", "Lumefantrine", "Coartem", "Zinc Sulfate", "Ibuprofen", "Aspirin"
+    ];
+
+    const EHR_ICD_MAP = [
+      { keys: ['chest pain', 'chest tightness'], code: 'R07.9', label: 'Chest pain, unspecified' },
+      { keys: ['shortness of breath', 'dyspnea', 'breathing difficulty'], code: 'R06.0', label: 'Dyspnea' },
+      { keys: ['fever', 'pyrexia', 'high temperature'], code: 'R50.9', label: 'Fever, unspecified' },
+      { keys: ['headache'], code: 'R51', label: 'Headache' },
+      { keys: ['cough'], code: 'R05', label: 'Cough' },
+      { keys: ['abdominal pain', 'stomach pain'], code: 'R10.9', label: 'Abdominal pain, unspecified' },
+      { keys: ['diarrhea', 'dehydration'], code: 'A09', label: 'Infectious gastroenteritis / diarrhea' },
+      { keys: ['wound', 'pus', 'discharge', 'surgical site'], code: 'T81.4', label: 'Infection following a procedure' },
+      { keys: ['rash', 'allergy', 'itching'], code: 'L29.9', label: 'Pruritus, unspecified' },
+    ];
+
+    function titleCase(s) {
+      return s.replace(/\b\w/g, c => c.toUpperCase());
+    }
+
+    function ehrSetStatus(text) {
+      const el = document.getElementById('ehr-record-status');
+      if (el) el.innerText = text;
+    }
+
+    function appendEHRTranscriptLine(text) {
+      const box = document.getElementById('ehr-transcript-box');
+      if (!box || !text) return;
+      const placeholder = box.querySelector('.italic');
+      if (placeholder) box.innerHTML = "";
+      const p = document.createElement('p');
+      p.textContent = text;
+      box.appendChild(p);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    // Scans the live/uploaded transcript for clinical fields and fills the
+    // chart on the right. Only overwrites a field when something new is
+    // actually found, so incremental live updates never blank out a field
+    // that was already captured earlier in the conversation.
+    function extractEHRFields(text) {
+      const raw = text || '';
+      const lower = raw.toLowerCase();
+
+      let chiefComplaint = null;
+      let icdMatch = null;
+      for (const entry of EHR_ICD_MAP) {
+        const hit = entry.keys.find(k => lower.includes(k));
+        if (hit) {
+          icdMatch = entry;
+          chiefComplaint = titleCase(hit);
+          break;
+        }
+      }
+
+      const durationMatch = lower.match(/(\d+)\s*(day|days|week|weeks|hour|hours)/);
+      const duration = durationMatch ? `${durationMatch[1]} ${durationMatch[2]}` : null;
+
+      const bpMatch = raw.match(/(\d{2,3})\s*(?:\/|over)\s*(\d{2,3})/i);
+      const bp = bpMatch ? `${bpMatch[1]}/${bpMatch[2]}` : null;
+
+      const pulseMatch = lower.match(/(?:pulse|heart rate|hr)\D{0,8}(\d{2,3})/) || lower.match(/(\d{2,3})\s*bpm/);
+      const pulse = pulseMatch ? pulseMatch[1] : null;
+
+      const tempMatch = lower.match(/(?:temp|temperature)\D{0,8}(\d{2}\.?\d?)/) || lower.match(/(\d{2}\.?\d?)\s*(?:°c|degrees c|degrees|c\b)/);
+      const temp = tempMatch ? tempMatch[1] : null;
+
+      const meds = [];
+      EHR_MED_VOCAB.forEach(med => {
+        const re = new RegExp(med + '\\D{0,10}(\\d{2,4}\\s*mg)?', 'i');
+        const m = raw.match(re);
+        if (m) meds.push(m[1] ? `${med} ${m[1].replace(/\s+/g, '')}` : med);
+      });
+
+      const setIfFound = (id, value) => {
+        if (value === null || value === undefined || value === '') return;
+        const el = document.getElementById(id);
+        if (el) el.value = value;
+      };
+
+      setIfFound('ehr-cc', chiefComplaint);
+      setIfFound('ehr-duration', duration);
+      setIfFound('ehr-bp', bp);
+      setIfFound('ehr-pulse', pulse);
+      setIfFound('ehr-temp', temp);
+
+      if (meds.length) {
+        const el = document.getElementById('ehr-meds');
+        if (el) el.value = meds.map((m, i) => `${i + 1}. ${m}`).join('\n');
+      }
+
+      if (icdMatch) {
+        const icdEl = document.getElementById('ehr-icd');
+        if (icdEl) icdEl.innerText = `ICD-10 Code: ${icdMatch.code} (${icdMatch.label})`;
+      }
+
+      const syncBtn = document.getElementById('btn-sync-ehr');
+      if (syncBtn && chiefComplaint) {
+        syncBtn.disabled = false;
+        syncBtn.className = "bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold px-4 py-2 rounded-lg transition flex items-center gap-2 shadow-lg shadow-emerald-500/20";
+      }
+    }
+
+    function setEHRRecordButtonState(isRecording) {
+      const btn = document.getElementById('btn-ehr-record');
+      const badge = document.getElementById('ehr-live-badge');
+      if (btn) {
+        btn.innerHTML = isRecording
+          ? '<i class="fa-solid fa-stop"></i> Stop Recording'
+          : '<i class="fa-solid fa-microphone"></i> Start Consultation Recording';
+        btn.className = isRecording
+          ? "h-10 px-4 rounded-lg bg-red-500 hover:bg-red-400 text-white text-xs font-bold flex items-center gap-2 transition animate-pulse"
+          : "h-10 px-4 rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold flex items-center gap-2 transition";
+      }
+      if (badge) {
+        badge.innerText = isRecording ? 'Live' : 'Idle';
+        badge.className = isRecording ? 'text-[10px] text-emerald-400 font-mono' : 'text-[10px] text-slate-500 font-mono';
+      }
+    }
+
+    async function toggleEHRRecording() {
+      if (ehrRecording) {
+        ehrRecording = false;
+        if (ehrRecognition) { try { ehrRecognition.stop(); } catch (e) {} }
+        if (ehrMediaRecorder && ehrMediaRecorder.state === 'recording') ehrMediaRecorder.stop();
+        setEHRRecordButtonState(false);
+        return;
+      }
+
+      ehrLiveTranscript = "";
+      const box = document.getElementById('ehr-transcript-box');
+      if (box) box.innerHTML = "";
+
+      const SpeechRecognitionImpl = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+      if (SpeechRecognitionImpl) {
+        try {
+          ehrRecognition = new SpeechRecognitionImpl();
+          ehrRecognition.continuous = true;
+          ehrRecognition.interimResults = true;
+          ehrRecognition.lang = 'en-US';
+
+          ehrRecognition.onresult = (event) => {
+            let interim = '';
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+              const chunk = event.results[i][0].transcript;
+              if (event.results[i].isFinal) {
+                ehrLiveTranscript += chunk + ' ';
+                appendEHRTranscriptLine(chunk.trim());
+                extractEHRFields(ehrLiveTranscript);
+              } else {
+                interim = chunk;
+              }
+            }
+            ehrSetStatus(interim ? `Listening: "${interim}"` : 'Listening...');
+          };
+          ehrRecognition.onerror = (e) => {
+            ehrSetStatus(`Speech recognition error: ${e.error}`);
+          };
+          ehrRecognition.onend = () => {
+            if (ehrRecording) { try { ehrRecognition.start(); } catch (e) {} }
+          };
+
+          ehrRecognition.start();
+          ehrRecording = true;
+          setEHRRecordButtonState(true);
+          ehrSetStatus('Listening... speak the consultation naturally.');
+          return;
+        } catch (err) {
+          ehrSetStatus(`On-device recognition unavailable (${err.message}); falling back to audio upload.`);
+        }
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        ehrAudioChunks = [];
+        ehrMediaRecorder = new MediaRecorder(stream);
+        ehrMediaRecorder.ondataavailable = (e) => ehrAudioChunks.push(e.data);
+        ehrMediaRecorder.onstop = async () => {
+          stream.getTracks().forEach(t => t.stop());
+          const blob = new Blob(ehrAudioChunks, { type: 'audio/webm' });
+          await uploadEHRAudioForTranscription(blob);
+        };
+        ehrMediaRecorder.start();
+        ehrRecording = true;
+        setEHRRecordButtonState(true);
+        ehrSetStatus('Recording consultation audio (no on-device recognition in this browser)...');
+      } catch (err) {
+        ehrSetStatus(`Microphone unavailable: ${err.message}`);
+      }
+    }
+
+    async function uploadEHRAudioForTranscription(blob) {
+      ehrSetStatus('Transcribing consultation audio via Intron...');
+      const configuredOrigin = new URLSearchParams(window.location.search).get('api-origin');
+      const apiOrigin = window.SAHARA_API_ORIGIN || configuredOrigin || `${window.location.protocol}//${window.location.hostname}:8000`;
+      const form = new FormData();
+      form.append("audio_file_blob", blob, "consultation.webm");
+      form.append("audio_file_name", "consultation.webm");
+      form.append("use_language_asr_input", "am");
+      form.append("use_category", "file_category_telehealth");
+      form.append("use_disable_llm_corrections", "FALSE");
+      try {
+        const response = await fetch(`${apiOrigin}/api/intron/stt/upload-sync`, { method: "POST", body: form });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.detail || result.message || `Upload failed (${response.status})`);
+        const transcript = result?.data?.audio_transcript || result?.data?.transcript || result?.transcript;
+        if (transcript) {
+          appendEHRTranscriptLine(transcript);
+          extractEHRFields(transcript);
+          ehrSetStatus('Transcription complete. Fields auto-filled below -- please verify.');
+        } else {
+          ehrSetStatus('Transcription returned no text.');
+        }
+      } catch (error) {
+        console.error("Consultation transcription failed:", error);
+        ehrSetStatus(`Transcription failed: ${error.message}. Try Chrome for on-device recognition, or use "Load Consultation Demo".`);
+      } finally {
+        setEHRRecordButtonState(false);
+      }
+    }
+
+    // Sequentially reveals + speaks each line of a simulated call, one at a
+    // time, so the AI Agent's turns are actually heard aloud like a real
+    // voice call rather than appearing as static text all at once.
+    function playDialogueSequence(lines, { onDone } = {}) {
       const dialogue = document.getElementById('followup-dialogue');
+      const callIcon = document.getElementById('call-icon');
+      const callStatus = document.getElementById('call-status-text');
+      const callSub = document.getElementById('call-subtext');
+      if (dialogue) dialogue.innerHTML = "";
+
+      let index = 0;
+      function next() {
+        if (index >= lines.length) {
+          if (callIcon) callIcon.className = "fa-solid fa-phone-slash text-slate-500";
+          if (callStatus) callStatus.innerText = "Call Ended";
+          if (callSub) callSub.innerText = "Simulation complete.";
+          if (onDone) onDone();
+          return;
+        }
+        const line = lines[index];
+        index += 1;
+
+        const p = document.createElement('p');
+        p.innerHTML = `<b class="${line.speaker === 'agent' ? 'text-indigo-400' : 'text-emerald-400'}">${line.speaker === 'agent' ? 'AI Agent' : 'Patient'}:</b> "${line.text}"`;
+        if (dialogue) dialogue.appendChild(p);
+
+        if (line.speaker === 'agent') {
+          if (callIcon) callIcon.className = "fa-solid fa-phone-volume text-emerald-400 animate-bounce";
+          if (callStatus) callStatus.innerText = "Speaking...";
+          if (callSub) callSub.innerText = "Sahara Voice Agent speaking in Amharic-English...";
+          speakText(line.text.replace(/[\u1200-\u137F]/g, ''), {
+            lang: 'en-US',
+            onend: () => setTimeout(next, 350)
+          });
+        } else {
+          if (callIcon) callIcon.className = "fa-solid fa-phone text-emerald-400";
+          if (callStatus) callStatus.innerText = "Listening...";
+          if (callSub) callSub.innerText = "Patient response received.";
+          setTimeout(next, 900);
+        }
+      }
+      next();
+    }
+
+    function runFollowUpSimulation(type) {
       const badge = document.getElementById('followup-risk-badge');
       const desc = document.getElementById('followup-risk-desc');
       const escBtn = document.getElementById('btn-escalate');
@@ -1306,13 +1744,11 @@
       if (callSub) callSub.innerText = "Sahara Voice Agent speaking in Amharic-English...";
 
       if (type === 'stable') {
-        if (dialogue) {
-          dialogue.innerHTML = `
-            <p><b class="text-indigo-400">AI Agent:</b> "ጤና ይስጥልኝ ከበደ, post-op ሕመሙ ደህና ነው?"</p>
-            <p><b class="text-emerald-400">Patient:</b> "ደህና ነኝ, ሕመሙ lessen ሲያደርግ, no fever today."</p>
-            <p><b class="text-indigo-400">AI Agent:</b> "Very good. Remember to take your prescribed meds as scheduled."</p>
-          `;
-        }
+        playDialogueSequence([
+          { speaker: 'agent', text: "ጤና ይስጥልኝ ከበደ, post-op ሕመሙ ደህና ነው? Kebede, how is the post-op pain today?" },
+          { speaker: 'patient', text: "ደህና ነኝ, ሕመሙ lessen ሲያደርግ, no fever today." },
+          { speaker: 'agent', text: "Very good. Remember to take your prescribed medications as scheduled." }
+        ]);
         if (badge) {
           badge.className = "text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 inline-block";
           badge.innerText = "STABLE RECOVERY (NORMAL)";
@@ -1320,13 +1756,11 @@
         if (desc) desc.innerText = "Patient reports reduced pain and absence of fever. No intervention required.";
         if (escBtn) escBtn.disabled = true;
       } else {
-        if (dialogue) {
-          dialogue.innerHTML = `
-            <p><b class="text-indigo-400">AI Agent:</b> "ጤና ይስጥልኝ ከበደ, how is the wound site feeling?"</p>
-            <p><b class="text-red-400">Patient:</b> "Operasion-u site red ሲያደርግ and pus discharge ale, fever felt very high."</p>
-            <p><b class="text-indigo-400">AI Agent:</b> "Understood. I am flagging this immediately for nurse escalation."</p>
-          `;
-        }
+        playDialogueSequence([
+          { speaker: 'agent', text: "ጤና ይስጥልኝ ከበደ, how is the wound site feeling? Kebede, how is the wound site feeling?" },
+          { speaker: 'patient', text: "Operasion-u site red ሲያደርግ and pus discharge ale, fever felt very high." },
+          { speaker: 'agent', text: "Understood. I am flagging this immediately for nurse escalation." }
+        ]);
         if (badge) {
           badge.className = "text-xs font-bold px-3 py-1.5 rounded-lg bg-red-500/20 text-red-400 border border-red-500/40 inline-block animate-pulse";
           badge.innerText = "HIGH RISK - SURGICAL WOUND INFECTION";
@@ -1714,6 +2148,7 @@ Digital Signoff  : Dr. Tadesse (Duty Clinician)
 
     // Initialize UI states on load
     window.addEventListener('DOMContentLoaded', () => {
+      loadVoicesOnce();
       initBenchmarkChart();
       onCaseSelectChange();
       checkSecureContext();
