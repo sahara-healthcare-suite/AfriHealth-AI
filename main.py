@@ -16,7 +16,7 @@ from collections import deque
 from typing import List, Optional
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 import httpx
 from pydantic import BaseModel
@@ -94,13 +94,9 @@ ORIGINS = [
     "http://localhost:8000"
 ]
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# NOTE: we wrap the entire FastAPI application with CORSMiddleware below,
+# rather than relying only on add_middleware(). This ensures CORS headers are
+# present even when an unhandled exception produces a 500/503 response.
 
 # Configuration & Keys
 INTRON_API_KEY = os.getenv("INTRON_API_KEY", "")
@@ -150,6 +146,11 @@ def _normalize_language_code(language_code: str) -> str:
 
 INTRON_SYNC_UPLOAD_ENDPOINT = "https://infer.voice.intron.io/file/v1/upload/sync"
 INTRON_FILE_STATUS_ENDPOINT = "https://infer.voice.intron.io/file/v1/status/{file_id}"
+INTRON_TTS_GENERATE_ENDPOINT = "https://infer.voice.intron.io/tts/v1/generate"
+INTRON_TTS_STATUS_ENDPOINT = "https://infer.voice.intron.io/tts/v1/status/{text_id}"
+INTRON_TTS_VOICE_LANGUAGE = os.getenv("INTRON_TTS_VOICE_LANGUAGE", "am")
+INTRON_TTS_VOICE_ACCENT = os.getenv("INTRON_TTS_VOICE_ACCENT", "amharic")
+INTRON_TTS_VOICE_GENDER = os.getenv("INTRON_TTS_VOICE_GENDER", "female")
 
 
 async def _call_intron_transcribe(
@@ -465,6 +466,22 @@ async def intron_stt_upload_sync(request: Request):
                 data=data_payload,
                 files=files_payload
             )
+            if response.status_code == 503:
+                try:
+                    timeout_json = response.json()
+                except ValueError:
+                    timeout_json = {}
+                timeout_data = timeout_json.get("data") if isinstance(timeout_json, dict) else None
+                timeout_data = timeout_data if isinstance(timeout_data, dict) else {}
+                file_id = timeout_data.get("file_id") or timeout_json.get("file_id")
+                logger.warning("Intron sync upload timed out (503); file_id=%s", file_id)
+                raise HTTPException(
+                    status_code=503,
+                    detail={
+                        "message": "Intron processing timed out. Check the file status endpoint.",
+                        "file_id": file_id,
+                    },
+                )
             response.raise_for_status()
             return response.json()
     except httpx.HTTPStatusError as e:
@@ -516,6 +533,128 @@ async def intron_stt_file_status(file_id: str):
             status_code=500,
             detail="File status lookup failed.",
         )
+
+
+@app.post("/api/intron/tts")
+async def intron_tts(payload: dict):
+    """Generate Amharic speech through Intron TTS without exposing the API key."""
+    if not INTRON_API_KEY:
+        raise HTTPException(status_code=503, detail="Intron API key not configured on server")
+
+    text = str(payload.get("text", "")).strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Text is required")
+    if len(text) > 4096:
+        raise HTTPException(status_code=400, detail="TTS text exceeds Intron's 4096 character limit")
+
+    voice_language = str(payload.get("voice_language") or INTRON_TTS_VOICE_LANGUAGE).strip().lower()
+    voice_accent = str(payload.get("voice_accent") or INTRON_TTS_VOICE_ACCENT).strip().lower()
+    voice_gender = str(payload.get("voice_gender") or INTRON_TTS_VOICE_GENDER).strip().lower()
+
+    request_body = {
+        "text": text,
+        "voice_language": voice_language,
+        "voice_accent": voice_accent,
+        "voice_gender": voice_gender,
+        "output_audio_format": "wav",
+    }
+    headers = {
+        "Authorization": f"Bearer {INTRON_API_KEY}",
+        "Content-Type": "application/json",
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=130.0) as client:
+            response = await client.post(
+                INTRON_TTS_GENERATE_ENDPOINT,
+                headers=headers,
+                json=request_body,
+            )
+            if response.status_code == 503:
+                try:
+                    timeout_json = response.json()
+                except ValueError:
+                    timeout_json = {}
+                data = timeout_json.get("data") if isinstance(timeout_json, dict) else {}
+                data = data if isinstance(data, dict) else {}
+                text_id = data.get("text_id") or timeout_json.get("text_id")
+                raise HTTPException(
+                    status_code=503,
+                    detail={
+                        "message": "Intron TTS processing timed out. Check the TTS status endpoint.",
+                        "text_id": text_id,
+                    },
+                )
+            response.raise_for_status()
+            result = response.json()
+            result_data = result.get("data") if isinstance(result, dict) else {}
+            result_data = result_data if isinstance(result_data, dict) else {}
+            return {
+                "status": result.get("status", "Ok"),
+                "message": result.get("message", "text status found"),
+                "data": {
+                    "audio_duration_in_seconds": result_data.get("audio_duration_in_seconds"),
+                    "audio_path": result_data.get("audio_path"),
+                    "processing_status": result_data.get("processing_status"),
+                },
+            }
+    except HTTPException:
+        raise
+    except httpx.HTTPStatusError as e:
+        logger.error("Intron TTS error: %s - %s", e.response.status_code, e.response.text)
+        raise HTTPException(
+            status_code=e.response.status_code,
+            detail=f"Intron TTS error: {e.response.text}",
+        )
+    except Exception as e:
+        logger.error("Intron TTS gateway error: %s", e)
+        raise HTTPException(status_code=500, detail="TTS gateway processing failed.")
+
+
+@app.get("/api/intron/tts/status/{text_id}")
+async def intron_tts_status(text_id: str):
+    """Proxy Intron's TTS status endpoint after an async/timeout response."""
+    if not INTRON_API_KEY:
+        raise HTTPException(status_code=503, detail="Intron API key not configured on server")
+
+    headers = {"Authorization": f"Bearer {INTRON_API_KEY}"}
+    status_url = INTRON_TTS_STATUS_ENDPOINT.format(text_id=text_id)
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(status_url, headers=headers)
+            response.raise_for_status()
+            return response.json()
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=f"Intron TTS status error: {e.response.text}")
+    except Exception as e:
+        logger.error("Intron TTS status gateway error: %s", e)
+        raise HTTPException(status_code=500, detail="TTS status lookup failed.")
+
+
+@app.post("/api/intron/tts/audio")
+async def intron_tts_audio(payload: dict):
+    """Generate Intron TTS and proxy the resulting WAV bytes to the browser."""
+    result = await intron_tts(payload)
+    audio_path = result.get("data", {}).get("audio_path") if isinstance(result, dict) else None
+    processing_status = result.get("data", {}).get("processing_status") if isinstance(result, dict) else None
+    if not audio_path or processing_status != "TTS_TEXT_AUDIO_GENERATED":
+        raise HTTPException(status_code=502, detail="Intron TTS did not return generated audio.")
+
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            audio_response = await client.get(audio_path)
+            audio_response.raise_for_status()
+            return StreamingResponse(
+                iter([audio_response.content]),
+                media_type=audio_response.headers.get("content-type", "audio/wav"),
+                headers={"Cache-Control": "no-store"},
+            )
+    except httpx.HTTPStatusError as e:
+        logger.error("Intron TTS audio fetch error: %s - %s", e.response.status_code, e.response.text)
+        raise HTTPException(status_code=502, detail="Could not retrieve generated Intron audio.")
+    except Exception as e:
+        logger.error("Intron TTS audio proxy error: %s", e)
+        raise HTTPException(status_code=502, detail="Could not retrieve generated Intron audio.")
 
 
 # ---------------------------------------------------------------------------
@@ -634,8 +773,23 @@ async def benchmark_asr(
         raise HTTPException(status_code=413, detail="Audio file size exceeds maximum limit of 25MB")
 
     # 1. Sahara (Intron) transcript -- reuses the same call path as /api/v1/transcribe
-    sahara_result = await _call_intron_transcribe(contents, file.filename, file.content_type, language_code)
-    sahara_transcript = sahara_result["transcript"]
+    sahara_started = time.perf_counter()
+    try:
+        sahara_result = await _call_intron_transcribe(
+            contents, file.filename, file.content_type, language_code
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Intron benchmark transcription failed")
+        raise HTTPException(
+            status_code=502,
+            detail=f"Intron benchmark transcription failed: {type(e).__name__}: {e}",
+        )
+    sahara_latency_ms = round((time.perf_counter() - sahara_started) * 1000, 2)
+    sahara_transcript = sahara_result.get("transcript", "")
+    if not isinstance(sahara_transcript, str):
+        sahara_transcript = str(sahara_transcript)
 
     # 2. Whisper Medium transcript -- needs a real file on disk for torchaudio
     suffix = os.path.splitext(file.filename or "")[1] or ".wav"
@@ -645,7 +799,9 @@ async def benchmark_asr(
 
     try:
         try:
+            whisper_started = time.perf_counter()
             whisper_transcript = await asyncio.to_thread(_transcribe_with_whisper, raw_audio_path)
+            whisper_latency_ms = round((time.perf_counter() - whisper_started) * 1000, 2)
         except ImportError as e:
             raise HTTPException(
                 status_code=503,
@@ -653,6 +809,12 @@ async def benchmark_asr(
                     "Whisper benchmark dependencies not installed on this instance "
                     f"(torch/torchaudio/transformers). Missing: {e}"
                 ),
+            )
+        except Exception as e:
+            logger.exception("Whisper benchmark failed")
+            raise HTTPException(
+                status_code=503,
+                detail=f"Whisper benchmark processing failed: {type(e).__name__}: {e}",
             )
     finally:
         if os.path.exists(raw_audio_path):
@@ -671,6 +833,7 @@ async def benchmark_asr(
             "WER_percent": round(sahara_scores["wer"] * 100, 2),
             "CER_percent": round(sahara_scores["cer"] * 100, 2),
             "triage": triage_classifier(sahara_transcript),
+            "latency_ms": sahara_latency_ms,
             "mode": sahara_result["mode"],
         },
         {
@@ -681,16 +844,29 @@ async def benchmark_asr(
             "WER_percent": round(whisper_scores["wer"] * 100, 2),
             "CER_percent": round(whisper_scores["cer"] * 100, 2),
             "triage": triage_classifier(whisper_transcript),
+            "latency_ms": whisper_latency_ms,
             "mode": "live",
         },
     ]
 
     return {
         "status": "success",
+        "benchmark_type": "live_local_validation",
         "reference_transcript": reference_transcript,
         "results": results,
         "triage_agreement": results[0]["triage"] == results[1]["triage"],
     }
+
+
+# Wrap the fully configured ASGI app so CORS also covers framework-level
+# exception responses generated outside the route handlers.
+app = CORSMiddleware(
+    app=app,
+    allow_origins=ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 if __name__ == "__main__":

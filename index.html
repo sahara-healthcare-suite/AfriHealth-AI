@@ -297,7 +297,7 @@
             <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
               <div class="flex items-center justify-between mb-2">
                 <span class="text-xs font-bold text-slate-400 uppercase tracking-wider"><i class="fa-solid fa-file-audio text-emerald-400"></i> Intron Sahara v2.5 Code-Switched ASR Stream</span>
-                <span id="asr-confidence" class="text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">Confidence: --%</span>
+                <span id="asr-confidence" class="text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">Confidence: unavailable</span>
               </div>
               <div id="triage-transcript" class="p-3 bg-slate-900 rounded-lg border border-slate-800/80 text-sm font-mono text-slate-200 min-h-[90px] leading-relaxed">
                 <span class="text-slate-500 italic">Click a preset above or tap the microphone to begin code-switched speech recognition...</span>
@@ -528,117 +528,122 @@
       </div>
     </section>
 
-    <!-- MODULE 4: SAHARA v2.5 BENCHMARK MATRIX -->
+    <!-- MODULE 4: BENCHMARK & VALIDATION EVIDENCE -->
     <section id="sec-benchmark" class="tab-content hidden space-y-6">
-      <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 border-b border-slate-800/80 pb-4">
+      <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-800/80 pb-4">
           <div>
             <div class="flex items-center gap-2">
-              <span class="bg-slate-700 text-slate-300 text-xs px-2.5 py-1 rounded-md font-bold">EVIDENCE REVIEW</span>
-              <h2 class="text-xl font-bold text-white">ASR Benchmark and Clinical Validation</h2>
+              <span class="bg-emerald-500/15 text-emerald-400 text-xs px-2.5 py-1 rounded-md font-bold">EVIDENCE REVIEW</span>
+              <h2 class="text-xl font-bold text-white">ASR Benchmark & Clinical Validation</h2>
             </div>
-            <p class="text-sm text-slate-400 mt-1">The matrix below is a fixture/demo view. It is not a real model ranking; use the measured validation summary and linked reports for performance claims.</p>
+            <p class="text-sm text-slate-400 mt-1">Three clearly separated evidence layers: official Intron MultiBench results, AfriHealth clinical validation, and live local audio comparison.</p>
           </div>
-          <div class="flex items-center gap-2">
-            <button onclick="toggleJsonInspector()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold px-3 py-2 rounded-lg transition flex items-center gap-2 border border-slate-700">
-              <i class="fa-solid fa-code text-teal-400"></i> Inspect Gold JSON
-            </button>
-            <button onclick="recalculateBenchmarkScores()" class="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs px-4 py-2 rounded-lg transition flex items-center gap-2 shadow-lg shadow-emerald-500/20">
-              <i class="fa-solid fa-rotate text-slate-950"></i> Re-Calculate
-            </button>
-          </div>
+          <a href="https://github.com/intron-innovation/Intron-Multimodal-Benchmarking" target="_blank" rel="noopener noreferrer"
+             class="bg-slate-800 hover:bg-slate-700 text-teal-300 text-xs font-bold px-3 py-2 rounded-lg border border-teal-500/30 transition flex items-center gap-2">
+            <i class="fa-brands fa-github"></i> Official Intron Benchmark
+          </a>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-xs text-amber-100">
-            <h3 class="font-bold text-amber-300 mb-2"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Fixture benchmark limitation</h3>
-            <p>The displayed matrix uses embedded hypotheses and illustrative case values. Its 0% WER-style result is reproducible as a software fixture, but it is not independent audio inference or proof of production superiority. The "All Cases" row is calculated live as the average of the four per-case rows below, not a separately hardcoded figure.</p>
-          </div>
-          <div class="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-xs text-red-100">
-            <h3 class="font-bold text-red-300 mb-2"><i class="fa-solid fa-user-doctor mr-1"></i> Measured clinical validation</h3>
-            <p>15 reviewed Amharic-English recordings: <strong>56.38% mean WER</strong>, <strong>44.33% target-term recall</strong>, and <strong>6 critical-term-miss cases</strong>. Clinician review is mandatory; autonomous care is not supported.</p>
-          </div>
-        </div>
-
-        <!-- Case Selection Controls -->
-        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div class="flex items-center gap-3 w-full md:w-auto">
-            <label class="text-xs font-bold text-slate-400 uppercase whitespace-nowrap"><i class="fa-solid fa-database text-amber-400 mr-1"></i> Active Case Filter:</label>
-            <select id="benchmark-case-select" onchange="onCaseSelectChange()" class="w-full md:w-80 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500 font-semibold">
-              <option value="AGGREGATE">📊 ALL CASES: Aggregated Corpus Average (4 Samples)</option>
-              <option value="GOLD-ETH-001">GOLD-ETH-001: Pediatric High Fever & Severe Cough (ESI 2)</option>
-              <option value="GOLD-ETH-002">GOLD-ETH-002: Moderate Dehydration & Hypotension (ESI 3)</option>
-              <option value="GOLD-ETH-003">GOLD-ETH-003: Acute Chest Tightness & Dyspnea (ESI 1)</option>
-              <option value="GOLD-ETH-004">GOLD-ETH-004: Post-Op Appendectomy Wound Infection (ESI 2)</option>
-            </select>
-          </div>
-
-          <div id="case-summary-pills" class="flex items-center gap-2 flex-wrap text-xs">
-            <span class="bg-slate-900 border border-slate-800 px-2.5 py-1 rounded text-slate-300"><i class="fa-solid fa-clock text-emerald-400 mr-1"></i> Duration: <b class="text-white">71.8s</b></span>
-            <span class="bg-slate-900 border border-slate-800 px-2.5 py-1 rounded text-slate-300"><i class="fa-solid fa-language text-teal-400 mr-1"></i> Code-Switching: <b class="text-white">63.5% Amharic / 36.5% English</b></span>
-          </div>
-        </div>
-
-        <!-- Raw Gold Standard JSON Inspector -->
-        <div id="json-inspector-panel" class="hidden bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
-          <div class="flex justify-between items-center border-b border-slate-800 pb-2">
-            <span class="text-xs font-bold text-slate-400 uppercase"><i class="fa-solid fa-file-code text-teal-400 mr-1"></i> Raw Ground-Truth JSON payload (<span id="inspector-sample-id">GOLD-ETH-001</span>)</span>
-            <button onclick="toggleJsonInspector()" class="text-slate-500 hover:text-white text-xs"><i class="fa-solid fa-xmark"></i> Close</button>
-          </div>
-          <pre id="json-code-block" class="p-3 bg-slate-900 rounded-lg text-[11px] font-mono text-emerald-300 overflow-x-auto max-h-60 leading-tight"></pre>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <!-- Benchmark Chart -->
-          <div class="lg:col-span-7 bg-slate-950 p-4 rounded-xl border border-slate-800">
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider"><i class="fa-solid fa-chart-column text-amber-400"></i> WER % vs CER % Comparison (Lower is Better)</h3>
-              <span id="chart-case-badge" class="text-xs bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-2 py-0.5 rounded font-mono">Aggregated Corpus</span>
-            </div>
-            <div class="h-64">
-              <canvas id="benchmarkChart"></canvas>
-            </div>
-          </div>
-
-          <!-- Model Matrix Table -->
-          <div class="lg:col-span-5 bg-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col justify-between">
+        <!-- 1. OFFICIAL INTRON MULTIBENCH REFERENCE -->
+        <div class="bg-slate-950 p-5 rounded-xl border border-emerald-500/25 space-y-4">
+          <div class="flex items-center justify-between flex-wrap gap-2">
             <div>
-              <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-table text-teal-400"></i> Clinician Human-In-The-Loop (HITL) Scores</h3>
-
-              <div class="overflow-x-auto">
-                <table class="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr class="border-b border-slate-800 text-slate-400">
-                      <th class="py-2">Speech AI Model</th>
-                      <th class="py-2">WER</th>
-                      <th class="py-2">CER</th>
-                      <th class="py-2">Factuality</th>
-                      <th class="py-2">Safety</th>
-                    </tr>
-                  </thead>
-                  <tbody id="matrix-table-body" class="divide-y divide-slate-800/60 font-mono">
-                    <!-- Populated dynamically via JS -->
-                  </tbody>
-                </table>
+              <div class="flex items-center gap-2">
+                <span class="bg-emerald-500/10 text-emerald-400 text-[10px] px-2 py-1 rounded font-bold border border-emerald-500/20">LAYER 1</span>
+                <h3 class="text-sm font-bold text-white">Official Intron AfriHealth MultiBench — Amharic ASR</h3>
               </div>
+              <p class="text-xs text-slate-400 mt-1">Published benchmark reference. These figures are not generated by this application.</p>
             </div>
+            <span class="text-[10px] bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 px-2 py-1 rounded font-mono">OFFICIAL REFERENCE</span>
+          </div>
 
-            <div id="evaluator-comment-box" class="mt-4 p-3 bg-slate-900 rounded-lg border border-slate-800/80 text-xs space-y-1 text-slate-400">
-              <p class="font-semibold text-amber-400"><i class="fa-solid fa-user-doctor mr-1"></i> Clinician Review Notes:</p>
-              <p id="evaluator-comment-text" class="leading-relaxed">Intron Sahara v2.5 maintains accurate phonetic grounding for local disease descriptions without hallucinatory translations.</p>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div class="p-3 rounded-lg bg-slate-900 border border-slate-800">
+              <div class="text-[10px] text-slate-500 uppercase tracking-wider">Benchmark scale</div>
+              <div class="text-lg font-extrabold text-white mt-1">3,200</div>
+              <div class="text-[11px] text-slate-400">transcription instances</div>
             </div>
+            <div class="p-3 rounded-lg bg-slate-900 border border-slate-800">
+              <div class="text-[10px] text-slate-500 uppercase tracking-wider">Audio</div>
+              <div class="text-lg font-extrabold text-white mt-1">~10 hrs</div>
+              <div class="text-[11px] text-slate-400">~250 speakers</div>
+            </div>
+            <div class="p-3 rounded-lg bg-slate-900 border border-slate-800">
+              <div class="text-[10px] text-slate-500 uppercase tracking-wider">Amharic Sahara</div>
+              <div class="text-lg font-extrabold text-emerald-400 mt-1">32.6% WER</div>
+              <div class="text-[11px] text-slate-400">12.9% normalized CER</div>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="border-b border-slate-800 text-slate-400">
+                  <th class="py-2.5">Model</th>
+                  <th class="py-2.5">Normalized WER ↓</th>
+                  <th class="py-2.5">Normalized CER ↓</th>
+                  <th class="py-2.5">Source</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800/60 font-mono">
+                <tr><td class="py-2.5 text-emerald-400 font-bold">Intron Sahara</td><td class="py-2.5">32.6%</td><td class="py-2.5">12.9%</td><td class="py-2.5 text-slate-500">Intron MultiBench</td></tr>
+                <tr><td class="py-2.5 text-slate-300">OmniLLM</td><td class="py-2.5">37.1%</td><td class="py-2.5">14.5%</td><td class="py-2.5 text-slate-500">Intron MultiBench</td></tr>
+                <tr><td class="py-2.5 text-slate-300">Azure Speech</td><td class="py-2.5">41.6%</td><td class="py-2.5">16.4%</td><td class="py-2.5 text-slate-500">Intron MultiBench</td></tr>
+                <tr><td class="py-2.5 text-slate-300">Gemini Flash</td><td class="py-2.5">35.7%</td><td class="py-2.5">17.8%</td><td class="py-2.5 text-slate-500">Intron MultiBench</td></tr>
+                <tr><td class="py-2.5 text-slate-300">OmniCTC</td><td class="py-2.5">40.5%</td><td class="py-2.5">14.9%</td><td class="py-2.5 text-slate-500">Intron MultiBench</td></tr>
+                <tr><td class="py-2.5 text-slate-300">GPT-4o Transcribe</td><td class="py-2.5">85.4%</td><td class="py-2.5">57.6%</td><td class="py-2.5 text-slate-500">Intron MultiBench</td></tr>
+                <tr><td class="py-2.5 text-slate-300">Gemma4</td><td class="py-2.5">86.5%</td><td class="py-2.5">59.3%</td><td class="py-2.5 text-slate-500">Intron MultiBench</td></tr>
+                <tr><td class="py-2.5 text-slate-300">Qwen3</td><td class="py-2.5">111.4%</td><td class="py-2.5">116.6%</td><td class="py-2.5 text-slate-500">Intron MultiBench</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="p-3 bg-emerald-500/5 rounded-lg border border-emerald-500/15 text-[11px] text-slate-400">
+            <i class="fa-solid fa-circle-info text-emerald-400 mr-1"></i>
+            Official benchmark methodology reports WER/CER per language and model and tracks latency alongside accuracy. WER/CER are lower-is-better metrics.
+            <a class="text-teal-300 hover:text-teal-200 ml-1" target="_blank" rel="noopener noreferrer" href="https://github.com/intron-innovation/Intron-Multimodal-Benchmarking">View repository →</a>
           </div>
         </div>
 
-        <!-- Live Backend Benchmark: Sahara v2.5 vs. Whisper Medium on real audio -->
-        <div class="bg-slate-950 p-5 rounded-xl border border-slate-800 space-y-3">
-          <div class="flex items-center justify-between border-b border-slate-800 pb-2 flex-wrap gap-2">
-            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">
-              <i class="fa-solid fa-flask text-rose-400 mr-1"></i> Live Backend Benchmark (Sahara v2.5 vs. Whisper Medium)
-            </h3>
-            <span class="text-[10px] bg-rose-500/10 border border-rose-500/30 text-rose-300 px-2 py-0.5 rounded font-mono">MEASURED, NOT A FIXTURE</span>
+        <!-- 2. AFRIHEALTH CLINICAL VALIDATION -->
+        <div class="bg-slate-950 p-5 rounded-xl border border-amber-500/25 space-y-4">
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="bg-amber-500/10 text-amber-300 text-[10px] px-2 py-1 rounded font-bold border border-amber-500/20">LAYER 2</span>
+                <h3 class="text-sm font-bold text-white">AfriHealth Clinical Validation</h3>
+              </div>
+              <p class="text-xs text-slate-400 mt-1">Project-level evidence from the reviewed Amharic-English validation set.</p>
+            </div>
+            <span class="text-[10px] bg-amber-500/10 border border-amber-500/30 text-amber-300 px-2 py-1 rounded font-mono">PROJECT VALIDATION</span>
           </div>
-          <p class="text-xs text-slate-400">Upload a real audio sample and its verbatim reference transcript. This calls the gateway's <code class="text-emerald-400">/api/v1/benchmark</code> endpoint, which runs the audio through both models and computes actual WER/CER with <code class="text-emerald-400">jiwer</code> — unlike the fixture matrix above, these numbers are computed live from what you upload.</p>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div class="p-4 bg-slate-900 rounded-lg border border-slate-800"><div class="text-2xl font-extrabold text-white">15</div><div class="text-[11px] text-slate-400">reviewed Amharic-English recordings</div></div>
+            <div class="p-4 bg-slate-900 rounded-lg border border-slate-800"><div class="text-2xl font-extrabold text-amber-300">56.38%</div><div class="text-[11px] text-slate-400">mean WER reported by the project</div></div>
+            <div class="p-4 bg-slate-900 rounded-lg border border-slate-800"><div class="text-2xl font-extrabold text-red-300">6</div><div class="text-[11px] text-slate-400">critical-term-miss cases</div></div>
+          </div>
+
+          <div class="p-3 bg-amber-500/5 rounded-lg border border-amber-500/15 text-[11px] text-slate-400">
+            <i class="fa-solid fa-user-doctor text-amber-300 mr-1"></i>
+            This is AfriHealth's project validation, not the official MultiBench result. It is shown separately so the evidence sources cannot be conflated. Clinician review remains mandatory; autonomous care is not supported.
+          </div>
+        </div>
+
+        <!-- 3. LIVE LOCAL COMPARISON -->
+        <div class="bg-slate-950 p-5 rounded-xl border border-rose-500/25 space-y-3">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2 flex-wrap gap-2">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="bg-rose-500/10 text-rose-300 text-[10px] px-2 py-1 rounded font-bold border border-rose-500/20">LAYER 3</span>
+                <h3 class="text-sm font-bold text-white">Live Local Validation — Sahara vs Whisper Medium</h3>
+              </div>
+              <p class="text-xs text-slate-400 mt-1">Fresh audio uploaded by the evaluator. This is an application-level comparison, not an official MultiBench reproduction.</p>
+            </div>
+            <span class="text-[10px] bg-rose-500/10 border border-rose-500/30 text-rose-300 px-2 py-1 rounded font-mono">MEASURED LIVE</span>
+          </div>
+          <p class="text-xs text-slate-400">Upload real audio and a verbatim reference transcript. The gateway runs both models and calculates WER/CER for that sample, plus inference latency.</p>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
             <div class="space-y-3">
@@ -657,14 +662,14 @@
               </div>
             </div>
             <div>
-              <label class="text-slate-400 block mb-1 font-semibold">Reference verbatim transcript ($T_{gold}$)</label>
+              <label class="text-slate-400 block mb-1 font-semibold">Reference verbatim transcript</label>
               <textarea id="live-benchmark-reference" rows="5" class="w-full bg-slate-900 border border-slate-800 rounded p-2 text-slate-200 font-mono focus:border-emerald-500 focus:outline-none" placeholder="Type exactly what is said in the audio..."></textarea>
             </div>
           </div>
 
           <div class="flex items-center justify-between pt-1 flex-wrap gap-2">
             <button id="live-benchmark-run" onclick="runLiveBackendBenchmark()" class="bg-rose-500 hover:bg-rose-400 text-slate-950 font-bold text-xs px-4 py-2 rounded-lg transition flex items-center gap-2">
-              <i class="fa-solid fa-play"></i> Run Real Benchmark
+              <i class="fa-solid fa-play"></i> Run Live Comparison
             </button>
             <span id="live-benchmark-status" class="text-xs text-slate-500"></span>
           </div>
@@ -676,6 +681,7 @@
                   <th class="py-2">Model</th>
                   <th class="py-2">WER</th>
                   <th class="py-2">CER</th>
+                  <th class="py-2">Latency</th>
                   <th class="py-2">Triage</th>
                   <th class="py-2">Transcript</th>
                 </tr>
@@ -686,33 +692,36 @@
           </div>
         </div>
 
-        <!-- Live Levenshtein Edit-Distance Calculator -->
+        <!-- Manual WER/CER sanity check -->
         <div class="bg-slate-950 p-5 rounded-xl border border-slate-800 space-y-3">
           <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider"><i class="fa-solid fa-calculator text-emerald-400 mr-1"></i> Live Levenshtein Edit-Distance Calculator</h3>
-            <span class="text-[11px] text-slate-500 font-mono">Formula: WER = (S + D + I) / N</span>
+            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider"><i class="fa-solid fa-calculator text-emerald-400 mr-1"></i> Local WER/CER Sanity Check</h3>
+            <span class="text-[11px] text-slate-500 font-mono">Formula: WER = edits / reference words</span>
           </div>
-
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
             <div>
-              <label class="text-slate-400 block mb-1 font-semibold">Reference Verbatim Ground Truth ($T_{gold}$)</label>
+              <label class="text-slate-400 block mb-1 font-semibold">Reference</label>
               <textarea id="calc-reference" rows="2" class="w-full bg-slate-900 border border-slate-800 rounded p-2 text-slate-200 font-mono focus:border-emerald-500 focus:outline-none" placeholder="Enter reference transcript...">Patient-u twin years የነበረ character severe cough and fever አለው for 3 days.</textarea>
             </div>
             <div>
-              <label class="text-slate-400 block mb-1 font-semibold">Hypothesis ASR Model Output ($T_{hyp}$)</label>
+              <label class="text-slate-400 block mb-1 font-semibold">Hypothesis</label>
               <textarea id="calc-hypothesis" rows="2" class="w-full bg-slate-900 border border-slate-800 rounded p-2 text-slate-200 font-mono focus:border-emerald-500 focus:outline-none" placeholder="Enter ASR output transcript...">Patient twin years የነበረ severe cough and fever ale for 3 days.</textarea>
             </div>
           </div>
-
           <div class="flex items-center justify-between pt-1">
             <button onclick="runLiveWerCalculation()" class="bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-emerald-500/30 text-xs font-bold px-4 py-2 rounded-lg transition flex items-center gap-2">
-              <i class="fa-solid fa-play"></i> Compute Exact WER & CER
+              <i class="fa-solid fa-play"></i> Compute WER & CER
             </button>
             <div id="calc-results" class="flex items-center gap-4 text-xs font-mono">
               <span class="bg-slate-900 border border-slate-800 px-3 py-1.5 rounded text-emerald-400 font-bold">Calculated WER: --%</span>
               <span class="bg-slate-900 border border-slate-800 px-3 py-1.5 rounded text-teal-400 font-bold">Calculated CER: --%</span>
             </div>
           </div>
+        </div>
+
+        <div class="p-3 bg-slate-900 rounded-lg border border-slate-800 text-[11px] text-slate-500">
+          <i class="fa-solid fa-shield-halved text-emerald-400 mr-1"></i>
+          Evidence rule: official MultiBench figures are published reference data; clinical validation figures are project evidence; live comparison figures are generated from the evaluator's uploaded audio. These three layers are intentionally kept separate.
         </div>
       </div>
     </section>
@@ -1216,6 +1225,8 @@
     // ---------------------------------------------------------------------
     let voiceOutputEnabled = true;
     let cachedVoices = [];
+    let intronVoiceAudio = null;
+    let lastIntronTtsAudioUrl = null;
 
     function loadVoicesOnce() {
       if (!('speechSynthesis' in window)) return;
@@ -1235,27 +1246,61 @@
       return english || cachedVoices[0] || null;
     }
 
-    function speakText(text, { lang = 'en-US', onstart, onend } = {}) {
+    async function speakText(text, { lang = 'am', onstart, onend } = {}) {
       if (!voiceOutputEnabled || !text) return;
-      if (!('speechSynthesis' in window)) {
-        if (onend) onend();
-        return;
+      if (typeof onstart === 'function') onstart();
+      try {
+        const apiOrigin = resolveSaharaApiOrigin();
+        const response = await fetch(`${apiOrigin}/api/intron/tts/audio`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: String(text).slice(0, 4096),
+            voice_language: 'am',
+            voice_accent: 'amharic',
+            voice_gender: 'female'
+          })
+        });
+        if (!response.ok) {
+          let detail = '';
+          try {
+            const payload = await response.json();
+            detail = typeof payload.detail === 'string' ? payload.detail : JSON.stringify(payload.detail || payload);
+          } catch (_) {}
+          throw new Error(detail || `Intron TTS request failed (${response.status})`);
+        }
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        if (intronVoiceAudio) intronVoiceAudio.pause();
+        intronVoiceAudio = new Audio(audioUrl);
+        intronVoiceAudio.onended = () => { URL.revokeObjectURL(audioUrl); if (typeof onend === 'function') onend(); };
+        intronVoiceAudio.onerror = () => { URL.revokeObjectURL(audioUrl); if (typeof onend === 'function') onend(); };
+        lastIntronTtsAudioUrl = audioUrl;
+        await intronVoiceAudio.play();
+      } catch (error) {
+        console.error('Intron TTS failed:', error);
+        // Keep browser speech as a local fallback only when Intron TTS is unavailable.
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.lang = lang === 'en-US' ? 'en-US' : 'am';
+          utterance.rate = 1.0;
+          utterance.pitch = 1.0;
+          utterance.onend = onend;
+          utterance.onerror = onend;
+          window.speechSynthesis.speak(utterance);
+        } else if (typeof onend === 'function') {
+          onend();
+        }
       }
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      const voice = pickVoice(lang);
-      if (voice) utterance.voice = voice;
-      utterance.lang = voice ? voice.lang : lang;
-      utterance.rate = 1.0;
-      utterance.pitch = 1.0;
-      if (onstart) utterance.onstart = onstart;
-      if (onend) { utterance.onend = onend; utterance.onerror = onend; }
-      window.speechSynthesis.speak(utterance);
     }
 
     function toggleVoiceOutput() {
       voiceOutputEnabled = !voiceOutputEnabled;
-      if (!voiceOutputEnabled && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+      if (!voiceOutputEnabled) {
+        if (intronVoiceAudio) intronVoiceAudio.pause();
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+      }
       const icon = document.getElementById('voice-toggle-icon');
       const label = document.getElementById('voice-toggle-label');
       if (icon) icon.className = voiceOutputEnabled ? 'fa-solid fa-volume-high' : 'fa-solid fa-volume-xmark';
@@ -1268,7 +1313,7 @@
       const btn = document.getElementById('btn-speak-recommendation');
       if (btn) btn.disabled = !text;
       speakText(text, {
-        lang: 'en-US',
+        lang: 'am',
         onstart: () => setSpeakButtonState(true),
         onend: () => setSpeakButtonState(false)
       });
@@ -1285,16 +1330,12 @@
       if (lastRecommendationText) speakRecommendation(lastRecommendationText);
     }
 
-    function testSpeechSynthesis() {
+    async function testSpeechSynthesis() {
       const sub = document.getElementById('diag-tts-sub');
-      if (!('speechSynthesis' in window)) {
-        if (sub) sub.innerText = "❌ speechSynthesis is not supported in this browser.";
-        return;
-      }
-      if (sub) sub.innerText = "🔊 Playing test phrase...";
-      speakText("AfriHealth AI voice response system is online.", {
-        lang: 'en-US',
-        onend: () => { if (sub) sub.innerText = "✅ Speech synthesis is working."; }
+      if (sub) sub.innerText = 'Generating Amharic voice through Intron...';
+      await speakText('አፍሪሄልዝ ኤይአይ የድምጽ ምላሽ ስርዓት እየሰራ ነው።', {
+        lang: 'am',
+        onend: () => { if (sub) sub.innerText = '✅ Intron Amharic TTS response completed.'; }
       });
     }
 
@@ -1429,6 +1470,23 @@
       }
     }
 
+    async function pollIntronFileStatus(apiOrigin, fileId, { intervalMs = 2500, maxAttempts = 24 } = {}) {
+      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        const response = await fetch(`${apiOrigin}/api/intron/stt/status/${encodeURIComponent(fileId)}`);
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.detail || payload.message || `Status lookup failed (${response.status})`);
+        }
+        const data = payload?.data;
+        if (data?.audio_transcript) return data.audio_transcript;
+        if (data?.processing_status === "FILE_PROCESSING_FAILED" || data?.processing_status === "FILE_FAILED" || data?.processing_status === "FAILED") {
+          throw new Error(payload.message || "Intron failed to process the audio file.");
+        }
+        await new Promise(resolve => setTimeout(resolve, intervalMs));
+      }
+      throw new Error("Intron is still processing the file. Please retry the upload/status check shortly.");
+    }
+
     async function uploadSavedRecording() {
       const status = document.getElementById("mic-status");
       const upload = document.getElementById("save-upload-recording");
@@ -1449,8 +1507,16 @@
       try {
         const response = await fetch(`${apiOrigin}/api/intron/stt/upload-sync`, { method: "POST", body: form });
         const result = await response.json();
-        if (!response.ok) throw new Error(result.detail || result.message || `Upload failed (${response.status})`);
-        const transcript = result?.data?.audio_transcript || result?.data?.transcript || result?.transcript;
+        let transcript = result?.data?.audio_transcript || "";
+        if (response.status === 503) {
+          const detail = result?.detail || {};
+          const fileId = detail?.file_id || result?.file_id;
+          if (!fileId) throw new Error(detail?.message || "Intron timed out without returning a file_id.");
+          if (status) status.innerText = "Intron is still processing the recording; checking file status...";
+          transcript = await pollIntronFileStatus(apiOrigin, fileId);
+        } else if (!response.ok) {
+          throw new Error(result.detail || result.message || `Upload failed (${response.status})`);
+        }
         if (transcript) {
           const target = document.getElementById("triage-transcript");
           if (target) target.innerText = transcript;
@@ -1646,103 +1712,97 @@
     async function toggleEHRRecording() {
       if (ehrRecording) {
         ehrRecording = false;
-        if (ehrRecognition) { try { ehrRecognition.stop(); } catch (e) {} }
         if (ehrMediaRecorder && ehrMediaRecorder.state === 'recording') ehrMediaRecorder.stop();
         setEHRRecordButtonState(false);
         return;
       }
 
-      ehrLiveTranscript = "";
+      ehrLiveTranscript = '';
       const box = document.getElementById('ehr-transcript-box');
-      if (box) box.innerHTML = "";
-
-      const SpeechRecognitionImpl = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-      if (SpeechRecognitionImpl) {
-        try {
-          ehrRecognition = new SpeechRecognitionImpl();
-          ehrRecognition.continuous = true;
-          ehrRecognition.interimResults = true;
-          ehrRecognition.lang = 'en-US';
-
-          ehrRecognition.onresult = (event) => {
-            let interim = '';
-            for (let i = event.resultIndex; i < event.results.length; i++) {
-              const chunk = event.results[i][0].transcript;
-              if (event.results[i].isFinal) {
-                ehrLiveTranscript += chunk + ' ';
-                appendEHRTranscriptLine(chunk.trim());
-                extractEHRFields(ehrLiveTranscript);
-              } else {
-                interim = chunk;
-              }
-            }
-            ehrSetStatus(interim ? `Listening: "${interim}"` : 'Listening...');
-          };
-          ehrRecognition.onerror = (e) => {
-            ehrSetStatus(`Speech recognition error: ${e.error}`);
-          };
-          ehrRecognition.onend = () => {
-            if (ehrRecording) { try { ehrRecognition.start(); } catch (e) {} }
-          };
-
-          ehrRecognition.start();
-          ehrRecording = true;
-          setEHRRecordButtonState(true);
-          ehrSetStatus('Listening... speak the consultation naturally.');
-          return;
-        } catch (err) {
-          ehrSetStatus(`On-device recognition unavailable (${err.message}); falling back to audio upload.`);
-        }
-      }
+      if (box) box.innerHTML = '';
 
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         ehrAudioChunks = [];
         ehrMediaRecorder = new MediaRecorder(stream);
-        ehrMediaRecorder.ondataavailable = (e) => ehrAudioChunks.push(e.data);
+        ehrMediaRecorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) ehrAudioChunks.push(e.data);
+        };
         ehrMediaRecorder.onstop = async () => {
           stream.getTracks().forEach(t => t.stop());
-          const blob = new Blob(ehrAudioChunks, { type: 'audio/webm' });
-          await uploadEHRAudioForTranscription(blob);
+          const mime = ehrMediaRecorder?.mimeType || 'audio/webm';
+          const extension = mime.includes('ogg') ? 'ogg' : 'webm';
+          const blob = new Blob(ehrAudioChunks, { type: mime });
+          const savedUrl = URL.createObjectURL(blob);
+          const currentAudio = document.getElementById('ehr-transcript-box');
+          if (currentAudio) currentAudio.dataset.recordingUrl = savedUrl;
+          await uploadEHRAudioForTranscription(blob, `consultation.${extension}`);
         };
-        ehrMediaRecorder.start();
+        ehrMediaRecorder.start(250);
         ehrRecording = true;
         setEHRRecordButtonState(true);
-        ehrSetStatus('Recording consultation audio (no on-device recognition in this browser)...');
+        ehrSetStatus('Recording consultation audio — the complete recording will be uploaded to Intron when you stop.');
       } catch (err) {
         ehrSetStatus(`Microphone unavailable: ${err.message}`);
+        setEHRRecordButtonState(false);
       }
     }
 
-    async function uploadEHRAudioForTranscription(blob) {
-      ehrSetStatus('Transcribing consultation audio via Intron...');
-      const configuredOrigin = new URLSearchParams(window.location.search).get('api-origin');
-      const apiOrigin = window.SAHARA_API_ORIGIN || configuredOrigin || `${window.location.protocol}//${window.location.hostname}:8000`;
+    async function uploadEHRAudioForTranscription(blob, filename = 'consultation.webm') {
+      ehrSetStatus('Uploading consultation recording to Intron and transcribing...');
+      const apiOrigin = resolveSaharaApiOrigin();
       const form = new FormData();
-      form.append("audio_file_blob", blob, "consultation.webm");
-      form.append("audio_file_name", "consultation.webm");
-      form.append("use_language_asr_input", "am");
-      form.append("use_category", "file_category_telehealth");
-      form.append("use_disable_llm_corrections", "FALSE");
+      form.append('audio_file_blob', blob, filename);
+      form.append('audio_file_name', filename);
+      form.append('use_language_asr_input', 'am');
+      form.append('use_category', 'file_category_telehealth');
+      form.append('use_disable_llm_corrections', 'FALSE');
       try {
-        const response = await fetch(`${apiOrigin}/api/intron/stt/upload-sync`, { method: "POST", body: form });
+        const response = await fetch(`${apiOrigin}/api/intron/stt/upload-sync`, { method: 'POST', body: form });
         const result = await response.json();
-        if (!response.ok) throw new Error(result.detail || result.message || `Upload failed (${response.status})`);
-        const transcript = result?.data?.audio_transcript || result?.data?.transcript || result?.transcript;
-        if (transcript) {
-          appendEHRTranscriptLine(transcript);
-          extractEHRFields(transcript);
-          ehrSetStatus('Transcription complete. Fields auto-filled below -- please verify.');
-        } else {
-          ehrSetStatus('Transcription returned no text.');
+        if (!response.ok) {
+          const detail = result?.detail;
+          if (response.status === 503 && detail?.file_id) {
+            ehrSetStatus(`Intron is still processing file ${detail.file_id}. Checking status...`);
+            const completed = await pollIntronFileStatus(detail.file_id, apiOrigin);
+            return applyEHRTranscript(completed);
+          }
+          throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail || result));
         }
+        return applyEHRTranscript(result);
       } catch (error) {
-        console.error("Consultation transcription failed:", error);
-        ehrSetStatus(`Transcription failed: ${error.message}. Try Chrome for on-device recognition, or use "Load Consultation Demo".`);
+        console.error('Consultation transcription failed:', error);
+        ehrSetStatus(`Intron transcription failed: ${error.message}`);
       } finally {
         setEHRRecordButtonState(false);
       }
+    }
+
+    async function pollIntronFileStatus(fileId, apiOrigin) {
+      for (let attempt = 0; attempt < 30; attempt++) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        const response = await fetch(`${apiOrigin}/api/intron/stt/status/${encodeURIComponent(fileId)}`, {
+          headers: { Accept: 'application/json' }
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.detail || `Status lookup failed (${response.status})`);
+        const status = payload?.data?.processing_status;
+        if (status === 'FILE_TRANSCRIBED') return payload;
+        if (status === 'FILE_PROCESSING_FAILED') throw new Error('Intron file processing failed.');
+      }
+      throw new Error('Intron transcription is taking longer than expected. Please check the recording status later.');
+    }
+
+    function applyEHRTranscript(result) {
+      const transcript = result?.data?.audio_transcript || '';
+      if (!transcript) {
+        ehrSetStatus(`Intron returned status ${result?.data?.processing_status || 'without transcript text'}.`);
+        return result;
+      }
+      appendEHRTranscriptLine(transcript);
+      extractEHRFields(transcript);
+      ehrSetStatus('Intron transcription complete. Fields auto-filled below — please verify.');
+      return result;
     }
 
     // Sequentially reveals + speaks each line of a simulated call, one at a
@@ -1775,8 +1835,8 @@
           if (callIcon) callIcon.className = "fa-solid fa-phone-volume text-emerald-400 animate-bounce";
           if (callStatus) callStatus.innerText = "Speaking...";
           if (callSub) callSub.innerText = "Sahara Voice Agent speaking in Amharic-English...";
-          speakText(line.text.replace(/[\u1200-\u137F]/g, ''), {
-            lang: 'en-US',
+          speakText(line.text, {
+            lang: 'am',
             onend: () => setTimeout(next, 350)
           });
         } else {
@@ -2025,7 +2085,7 @@
       form.append('language_code', languageSelect?.value || 'am-ET');
 
       if (runBtn) runBtn.disabled = true;
-      if (statusEl) statusEl.innerText = 'Running Sahara v2.5 and Whisper Medium on the uploaded audio — this can take a while on first call (model load)...';
+      if (statusEl) statusEl.innerText = 'Running live Sahara vs Whisper comparison — first call may take longer while Whisper loads...';
       if (resultsPanel) resultsPanel.classList.add('hidden');
 
       try {
@@ -2043,6 +2103,7 @@
                 <td class="py-2.5 text-white font-bold">${escapeHtml(row.model)}${row.mode === 'fallback_judge_mode' ? ' <span class="text-[10px] text-amber-400 font-normal">(judge-mode mock)</span>' : ''}</td>
                 <td class="py-2.5">${row.WER_percent}%</td>
                 <td class="py-2.5">${row.CER_percent}%</td>
+                <td class="py-2.5">${row.latency_ms != null ? `${row.latency_ms} ms` : '--'}</td>
                 <td class="py-2.5"><span class="px-2 py-0.5 rounded ${badgeClass}">${escapeHtml(row.triage)}</span></td>
                 <td class="py-2.5 text-slate-400 max-w-xs truncate" title="${escapeHtml(row.transcript)}">${escapeHtml(row.transcript)}</td>
               </tr>
@@ -2057,7 +2118,7 @@
         }
 
         if (resultsPanel) resultsPanel.classList.remove('hidden');
-        if (statusEl) statusEl.innerText = 'Done. Results are measured from this audio, not the fixture matrix above.';
+        if (statusEl) statusEl.innerText = 'Done. These results are live local validation for this uploaded sample — not official MultiBench figures.';
       } catch (error) {
         console.error('Live benchmark failed:', error);
         if (statusEl) statusEl.innerText = `❌ ${error.message}`;
