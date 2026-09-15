@@ -13,3 +13,4 @@ torchaudio
 transformers
 jiwer
 soundfile
+av

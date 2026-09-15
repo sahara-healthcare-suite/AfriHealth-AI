@@ -689,18 +689,33 @@ def _get_whisper_pipeline():
 
 
 def _transcribe_with_whisper(audio_path: str) -> str:
-    """Resamples audio to 16kHz (Whisper's expected rate) and transcribes it."""
+    """Decodes and resamples audio to 16kHz (Whisper's expected rate) and transcribes it."""
+    import av
     import numpy as np
-    import soundfile as sf
     import torch
     import torchaudio
 
-    # Read directly with soundfile (libsndfile) -- avoids torchaudio.load()
-    # entirely, which on newer torchaudio always routes through the
-    # torchcodec/FFmpeg backend regardless of the `backend=` kwarg.
-    data, sample_rate = sf.read(audio_path, dtype="float32", always_2d=True)
-    # soundfile gives (frames, channels); torchaudio expects (channels, frames)
-    waveform = torch.from_numpy(data.T)
+    # Decode with PyAV instead of torchaudio.load(). PyAV ships its own
+    # bundled FFmpeg libraries in the pip wheel, so it needs no system-level
+    # FFmpeg install and doesn't go through torchcodec at all -- avoids both
+    # problems we hit above (missing system FFmpeg, and libsndfile not
+    # supporting AAC/M4A).
+    container = av.open(audio_path)
+    stream = container.streams.audio[0]
+    sample_rate = stream.rate
+
+    frames = []
+    for frame in container.decode(stream):
+        frames.append(frame.to_ndarray())
+    container.close()
+
+    audio_np = np.concatenate(frames, axis=1) if frames[0].ndim == 2 else np.concatenate(frames)
+    if audio_np.ndim == 1:
+        audio_np = audio_np[np.newaxis, :]  # (1, samples) -- mono
+    # If PyAV gives interleaved/stereo as (channels, samples) already this is fine;
+    # if you hit shape issues, print audio_np.shape once to check your source files.
+
+    waveform = torch.from_numpy(audio_np.astype(np.float32))
 
     if sample_rate != 16000:
         resampler = torchaudio.transforms.Resample(orig_freq=sample_rate, new_freq=16000)
