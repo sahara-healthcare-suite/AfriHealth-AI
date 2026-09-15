@@ -8,3 +8,7 @@ jiwer>=3.0,<4
 datasets[audio]>=3.0,<5
 soundfile>=0.12,<1
 transformers>=4.45,<5
+torch
+torchaudio
+transformers
+jiwer

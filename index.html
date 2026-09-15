@@ -630,6 +630,62 @@
           </div>
         </div>
 
+        <!-- Live Backend Benchmark: Sahara v2.5 vs. Whisper Medium on real audio -->
+        <div class="bg-slate-950 p-5 rounded-xl border border-slate-800 space-y-3">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2 flex-wrap gap-2">
+            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              <i class="fa-solid fa-flask text-rose-400 mr-1"></i> Live Backend Benchmark (Sahara v2.5 vs. Whisper Medium)
+            </h3>
+            <span class="text-[10px] bg-rose-500/10 border border-rose-500/30 text-rose-300 px-2 py-0.5 rounded font-mono">MEASURED, NOT A FIXTURE</span>
+          </div>
+          <p class="text-xs text-slate-400">Upload a real audio sample and its verbatim reference transcript. This calls the gateway's <code class="text-emerald-400">/api/v1/benchmark</code> endpoint, which runs the audio through both models and computes actual WER/CER with <code class="text-emerald-400">jiwer</code> — unlike the fixture matrix above, these numbers are computed live from what you upload.</p>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            <div class="space-y-3">
+              <div>
+                <label class="text-slate-400 block mb-1 font-semibold">Audio sample</label>
+                <input id="live-benchmark-file" type="file" accept="audio/*"
+                  class="w-full bg-slate-900 border border-slate-800 rounded p-2 text-slate-200 text-xs file:mr-3 file:py-1 file:px-2 file:rounded file:border-0 file:bg-slate-800 file:text-emerald-400 file:text-xs" />
+              </div>
+              <div>
+                <label class="text-slate-400 block mb-1 font-semibold">Language code</label>
+                <select id="live-benchmark-language" class="w-full bg-slate-900 border border-slate-800 rounded p-2 text-slate-200 focus:border-emerald-500 focus:outline-none">
+                  <option value="am-ET" selected>Amharic (am-ET)</option>
+                  <option value="om-ET">Afaan Oromoo (om-ET)</option>
+                  <option value="en">English (en)</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label class="text-slate-400 block mb-1 font-semibold">Reference verbatim transcript ($T_{gold}$)</label>
+              <textarea id="live-benchmark-reference" rows="5" class="w-full bg-slate-900 border border-slate-800 rounded p-2 text-slate-200 font-mono focus:border-emerald-500 focus:outline-none" placeholder="Type exactly what is said in the audio..."></textarea>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between pt-1 flex-wrap gap-2">
+            <button id="live-benchmark-run" onclick="runLiveBackendBenchmark()" class="bg-rose-500 hover:bg-rose-400 text-slate-950 font-bold text-xs px-4 py-2 rounded-lg transition flex items-center gap-2">
+              <i class="fa-solid fa-play"></i> Run Real Benchmark
+            </button>
+            <span id="live-benchmark-status" class="text-xs text-slate-500"></span>
+          </div>
+
+          <div id="live-benchmark-results" class="hidden overflow-x-auto">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="border-b border-slate-800 text-slate-400">
+                  <th class="py-2">Model</th>
+                  <th class="py-2">WER</th>
+                  <th class="py-2">CER</th>
+                  <th class="py-2">Triage</th>
+                  <th class="py-2">Transcript</th>
+                </tr>
+              </thead>
+              <tbody id="live-benchmark-table-body" class="divide-y divide-slate-800/60 font-mono"></tbody>
+            </table>
+            <p id="live-benchmark-agreement" class="text-xs text-slate-400 mt-2"></p>
+          </div>
+        </div>
+
         <!-- Live Levenshtein Edit-Distance Calculator -->
         <div class="bg-slate-950 p-5 rounded-xl border border-slate-800 space-y-3">
           <div class="flex items-center justify-between border-b border-slate-800 pb-2">
@@ -1914,6 +1970,97 @@
           <span class="bg-slate-900 border border-slate-800 px-3 py-1.5 rounded text-emerald-400 font-bold">Calculated WER: ${wer}%</span>
           <span class="bg-slate-900 border border-slate-800 px-3 py-1.5 rounded text-teal-400 font-bold">Calculated CER: ${cer}%</span>
         `;
+      }
+    }
+
+    function resolveSaharaApiOrigin() {
+      const configuredOrigin = new URLSearchParams(window.location.search).get('api-origin');
+      return window.SAHARA_API_ORIGIN || configuredOrigin || (
+        window.location.port === '8000'
+          ? window.location.origin
+          : `${window.location.protocol === 'https:' ? 'https:' : 'http:'}//${window.location.hostname}:8000`
+      );
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.innerText = str == null ? '' : String(str);
+      return div.innerHTML;
+    }
+
+    const TRIAGE_BADGE_CLASS = {
+      EMERGENCY: 'bg-red-500/10 border border-red-500/30 text-red-300',
+      URGENT: 'bg-amber-500/10 border border-amber-500/30 text-amber-300',
+      ROUTINE: 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300'
+    };
+
+    async function runLiveBackendBenchmark() {
+      const fileInput = document.getElementById('live-benchmark-file');
+      const referenceInput = document.getElementById('live-benchmark-reference');
+      const languageSelect = document.getElementById('live-benchmark-language');
+      const statusEl = document.getElementById('live-benchmark-status');
+      const runBtn = document.getElementById('live-benchmark-run');
+      const resultsPanel = document.getElementById('live-benchmark-results');
+      const tableBody = document.getElementById('live-benchmark-table-body');
+      const agreementEl = document.getElementById('live-benchmark-agreement');
+
+      const file = fileInput?.files?.[0];
+      const referenceTranscript = referenceInput?.value?.trim() || '';
+
+      if (!file) {
+        if (statusEl) statusEl.innerText = 'Choose an audio file first.';
+        return;
+      }
+      if (!referenceTranscript) {
+        if (statusEl) statusEl.innerText = 'Enter the reference transcript for that audio.';
+        return;
+      }
+
+      const apiOrigin = resolveSaharaApiOrigin();
+      const form = new FormData();
+      form.append('file', file, file.name);
+      form.append('reference_transcript', referenceTranscript);
+      form.append('language_code', languageSelect?.value || 'am-ET');
+
+      if (runBtn) runBtn.disabled = true;
+      if (statusEl) statusEl.innerText = 'Running Sahara v2.5 and Whisper Medium on the uploaded audio — this can take a while on first call (model load)...';
+      if (resultsPanel) resultsPanel.classList.add('hidden');
+
+      try {
+        const response = await fetch(`${apiOrigin}/api/v1/benchmark`, { method: 'POST', body: form });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.detail || payload.message || `Benchmark request failed (${response.status})`);
+        }
+
+        if (tableBody) {
+          tableBody.innerHTML = (payload.results || []).map(row => {
+            const badgeClass = TRIAGE_BADGE_CLASS[row.triage] || 'bg-slate-800 text-slate-300';
+            return `
+              <tr>
+                <td class="py-2.5 text-white font-bold">${escapeHtml(row.model)}${row.mode === 'fallback_judge_mode' ? ' <span class="text-[10px] text-amber-400 font-normal">(judge-mode mock)</span>' : ''}</td>
+                <td class="py-2.5">${row.WER_percent}%</td>
+                <td class="py-2.5">${row.CER_percent}%</td>
+                <td class="py-2.5"><span class="px-2 py-0.5 rounded ${badgeClass}">${escapeHtml(row.triage)}</span></td>
+                <td class="py-2.5 text-slate-400 max-w-xs truncate" title="${escapeHtml(row.transcript)}">${escapeHtml(row.transcript)}</td>
+              </tr>
+            `;
+          }).join('');
+        }
+
+        if (agreementEl) {
+          agreementEl.innerText = payload.triage_agreement
+            ? 'Both models produced the same triage classification for this sample.'
+            : 'Models disagreed on triage classification for this sample — review both transcripts.';
+        }
+
+        if (resultsPanel) resultsPanel.classList.remove('hidden');
+        if (statusEl) statusEl.innerText = 'Done. Results are measured from this audio, not the fixture matrix above.';
+      } catch (error) {
+        console.error('Live benchmark failed:', error);
+        if (statusEl) statusEl.innerText = `❌ ${error.message}`;
+      } finally {
+        if (runBtn) runBtn.disabled = false;
       }
     }
 
