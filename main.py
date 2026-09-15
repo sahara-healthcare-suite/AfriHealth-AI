@@ -690,9 +690,18 @@ def _get_whisper_pipeline():
 
 def _transcribe_with_whisper(audio_path: str) -> str:
     """Resamples audio to 16kHz (Whisper's expected rate) and transcribes it."""
+    import numpy as np
+    import soundfile as sf
+    import torch
     import torchaudio
-    waveform, sample_rate = torchaudio.load(audio_path, backend="soundfile")
-    # waveform, sample_rate = torchaudio.load(audio_path)
+
+    # Read directly with soundfile (libsndfile) -- avoids torchaudio.load()
+    # entirely, which on newer torchaudio always routes through the
+    # torchcodec/FFmpeg backend regardless of the `backend=` kwarg.
+    data, sample_rate = sf.read(audio_path, dtype="float32", always_2d=True)
+    # soundfile gives (frames, channels); torchaudio expects (channels, frames)
+    waveform = torch.from_numpy(data.T)
+
     if sample_rate != 16000:
         resampler = torchaudio.transforms.Resample(orig_freq=sample_rate, new_freq=16000)
         waveform = resampler(waveform)
